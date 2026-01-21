@@ -66,28 +66,41 @@ else
 }
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "EstacionamentoSecretKey12345678901234567890";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EstacionamentoApi";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EstacionamentoApi";
+try
+{
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? "EstacionamentoSecretKey12345678901234567890";
+    var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EstacionamentoApi";
+    var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EstacionamentoApi";
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-});
+        throw new InvalidOperationException("JWT Key deve ter pelo menos 32 caracteres");
+    }
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Erro ao configurar JWT: {ex.Message}");
+    throw;
+}
 
 builder.Services.AddAuthorization();
 
@@ -127,112 +140,94 @@ builder.Services.AddScoped<IVagaService, VagaService>();
 builder.Services.AddScoped<IOcupacaoService, OcupacaoService>();
 builder.Services.AddScoped<IPrecoService, PrecoService>();
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+WebApplication app;
+try
 {
-    app.UseDeveloperExceptionPage();
+    app = builder.Build();
+    Console.WriteLine("Aplicação construída com sucesso");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"ERRO ao construir aplicação: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    if (ex.InnerException != null)
+    {
+        Console.WriteLine($"Inner Exception: {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
+    }
+    throw;
 }
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Configure the HTTP request pipeline.
+try
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Estacionamento API v1");
-    c.RoutePrefix = "swagger";
-    c.DisplayRequestDuration();
-    c.EnableDeepLinking();
-    c.EnableFilter();
-});
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseDeveloperExceptionPage();
+    }
 
-// HTTPS redirection - Railway gerencia isso automaticamente
-app.UseHttpsRedirection();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Estacionamento API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.EnableFilter();
+    });
 
-app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
+    // HTTPS redirection - desabilitado no Railway (ele gerencia via proxy)
+    var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
+    if (!isRailway)
+    {
+        app.UseHttpsRedirection();
+    }
 
-// Health check endpoint
-app.MapGet("/health", () => new { 
-    status = "ok", 
-    timestamp = DateTime.UtcNow,
-    environment = builder.Environment.EnvironmentName
-});
+    app.UseCors("AllowAll");
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
 
-// Seed initial data (executar de forma assíncrona após o app iniciar para não bloquear)
-_ = Task.Run(async () =>
+    // Health check endpoint
+    app.MapGet("/health", () => new { 
+        status = "ok", 
+        timestamp = DateTime.UtcNow,
+        environment = app.Environment.EnvironmentName,
+        hasConnectionString = !string.IsNullOrEmpty(connectionString)
+    });
+
+    Console.WriteLine("Pipeline configurado com sucesso");
+}
+catch (Exception ex)
 {
-    try
+    Console.WriteLine($"ERRO ao configurar pipeline: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    throw;
+}
+
+// Seed initial data - removido temporariamente para debug
+// Será executado via endpoint ou script separado após deploy bem-sucedido
+
+try
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    Console.WriteLine($"=== INICIANDO APLICAÇÃO ===");
+    Console.WriteLine($"Porta: {port}");
+    Console.WriteLine($"Ambiente: {app.Environment.EnvironmentName}");
+    Console.WriteLine($"Connection String configurada: {!string.IsNullOrEmpty(connectionString)}");
+    Console.WriteLine($"Railway Environment: {Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")}");
+    
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"=== ERRO FATAL ===");
+    Console.WriteLine($"Tipo: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    if (ex.InnerException != null)
     {
-        await Task.Delay(3000); // Aguarda 3 segundos para garantir que o app iniciou
-        
-        using (var scope = app.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            
-            try
-            {
-                // Testa conexão com o banco
-                var canConnect = await context.Database.CanConnectAsync();
-                logger.LogInformation("Teste de conexão com banco: {CanConnect}", canConnect);
-                
-                if (canConnect)
-                {
-                    // Ensure database is created (only for InMemory, for PostgreSQL use migrations)
-                    if (string.IsNullOrEmpty(connectionString))
-                    {
-                        await context.Database.EnsureCreatedAsync();
-                    }
-
-                    // Seed Admin user if none exists
-                    if (!await context.Admins.AnyAsync())
-                    {
-                        var admin = new Admin
-                        {
-                            Usuario = "admin",
-                            SenhaHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                            Email = "admin@estacionamento.com",
-                            Ativo = true,
-                            DataCriacao = DateTime.UtcNow
-                        };
-                        context.Admins.Add(admin);
-                        await context.SaveChangesAsync();
-                        logger.LogInformation("Admin padrão criado: admin / admin123");
-                    }
-
-                    // Seed initial price if none exists
-                    if (!await context.Precos.AnyAsync())
-                    {
-                        var preco = new Preco
-                        {
-                            ValorHora = 10.00m,
-                            ValorMinuto = 0.17m, // R$ 10.00 / 60 minutos
-                            DataInicio = DateTime.UtcNow,
-                            Ativo = true
-                        };
-                        context.Precos.Add(preco);
-                        await context.SaveChangesAsync();
-                        logger.LogInformation("Preço padrão criado: R$ 10,00/hora");
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("Não foi possível conectar ao banco de dados. Seed não executado.");
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Erro ao inicializar dados do banco: {Message}", ex.Message);
-            }
-        }
+        Console.WriteLine($"Inner Exception: {ex.InnerException.GetType().Name}");
+        Console.WriteLine($"Inner Message: {ex.InnerException.Message}");
     }
-    catch (Exception ex)
-    {
-        // Log silencioso para não quebrar a inicialização
-        Console.WriteLine($"Erro no seed: {ex.Message}");
-    }
-});
-
-app.Run();
+    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+    throw;
+}
