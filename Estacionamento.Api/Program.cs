@@ -52,17 +52,39 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database Configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Se não encontrar, tenta ler da variável de ambiente diretamente
+if (string.IsNullOrEmpty(connectionString))
+{
+    connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") 
+        ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+}
+
 if (string.IsNullOrEmpty(connectionString))
 {
     // Use InMemory database if no connection string is provided
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseInMemoryDatabase("EstacionamentoDb"));
+    Console.WriteLine("⚠️ Usando banco InMemory - Connection string não configurada");
 }
 else
 {
+    // Converter formato URI para connection string se necessário
+    if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
+    {
+        // O Npgsql aceita formato URI diretamente
+        Console.WriteLine("✅ Usando formato URI do PostgreSQL");
+    }
+    else
+    {
+        Console.WriteLine("✅ Usando formato connection string tradicional");
+    }
+    
     // Use PostgreSQL (Supabase)
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(connectionString));
+    
+    Console.WriteLine($"📊 Connection string configurada (tamanho: {connectionString.Length} caracteres)");
 }
 
 // JWT Authentication

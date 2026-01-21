@@ -25,17 +25,22 @@ public class DiagnosticoController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Verificar()
     {
+        var connString = _configuration.GetConnectionString("DefaultConnection");
+        var connStringFromEnv = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+        
         var diagnostico = new
         {
             timestamp = DateTime.UtcNow,
             connectionString = new
             {
-                configurada = !string.IsNullOrEmpty(_configuration.GetConnectionString("DefaultConnection")),
-                temValor = !string.IsNullOrEmpty(_configuration.GetConnectionString("DefaultConnection")),
-                // Não mostrar a connection string completa por segurança
-                preview = _configuration.GetConnectionString("DefaultConnection") != null 
-                    ? _configuration.GetConnectionString("DefaultConnection")!.Substring(0, Math.Min(50, _configuration.GetConnectionString("DefaultConnection")!.Length)) + "..."
-                    : "não configurada"
+                configurada = !string.IsNullOrEmpty(connString),
+                temValor = !string.IsNullOrEmpty(connString),
+                tamanho = connString?.Length ?? 0,
+                preview = connString != null 
+                    ? connString.Substring(0, Math.Min(80, connString.Length)) + "..."
+                    : "não configurada",
+                temCaractereEspecial = connString?.Contains("#") ?? false,
+                variavelAmbiente = !string.IsNullOrEmpty(connStringFromEnv)
             },
             bancoDados = await VerificarBancoDados()
         };
