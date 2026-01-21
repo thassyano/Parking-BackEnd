@@ -5,8 +5,7 @@ nixPkgs = ["dotnet-sdk_8"]
 cmds = ["cd Estacionamento.Api && dotnet restore"]
 
 [phases.build]
-cmds = ["cd Estacionamento.Api && dotnet publish -c Release -o ./publish"]
+cmds = ["cd Estacionamento.Api && dotnet publish -c Release -o ./publish --no-self-contained"]
 
 [start]
 cmd = "cd Estacionamento.Api && dotnet ./publish/Estacionamento.Api.dll"
-
