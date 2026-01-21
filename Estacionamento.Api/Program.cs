@@ -70,19 +70,33 @@ if (string.IsNullOrEmpty(connectionString))
 else
 {
     // Converter formato URI para connection string se necessário
+    string finalConnectionString = connectionString;
+    
     if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
     {
-        Console.WriteLine("✅ Usando formato URI do PostgreSQL");
-        // O Npgsql aceita formato URI diretamente, mas vamos garantir que está correto
+        Console.WriteLine("✅ Detectado formato URI do PostgreSQL");
         try
         {
-            // Testar se a URI está bem formada
+            // Parsear URI
             var uri = new Uri(connectionString);
+            var userInfo = uri.UserInfo.Split(':');
+            var username = userInfo.Length > 0 ? userInfo[0] : "postgres";
+            var password = userInfo.Length > 1 ? userInfo[1] : "";
+            
+            // Decodificar password (pode ter %23 para #)
+            password = Uri.UnescapeDataString(password);
+            
+            // Converter para formato connection string tradicional
+            finalConnectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            
+            Console.WriteLine($"   Convertido para formato tradicional");
             Console.WriteLine($"   Host: {uri.Host}, Port: {uri.Port}, Database: {uri.LocalPath.TrimStart('/')}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ Erro ao parsear URI: {ex.Message}");
+            Console.WriteLine($"⚠️ Erro ao converter URI, usando URI diretamente: {ex.Message}");
+            // Se falhar, tenta usar URI diretamente
+            finalConnectionString = connectionString;
         }
     }
     else
@@ -93,7 +107,7 @@ else
     // Use PostgreSQL (Supabase) com configurações adicionais
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        options.UseNpgsql(connectionString, npgsqlOptions =>
+        options.UseNpgsql(finalConnectionString, npgsqlOptions =>
         {
             npgsqlOptions.CommandTimeout(30); // Timeout de 30 segundos
             npgsqlOptions.EnableRetryOnFailure(
@@ -103,7 +117,7 @@ else
         });
     });
     
-    Console.WriteLine($"📊 Connection string configurada (tamanho: {connectionString.Length} caracteres)");
+    Console.WriteLine($"📊 Connection string configurada (tamanho: {finalConnectionString.Length} caracteres)");
 }
 
 // JWT Authentication
