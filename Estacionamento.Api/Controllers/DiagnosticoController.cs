@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Infrastructure.Data;
+using Npgsql;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -52,14 +53,17 @@ public class DiagnosticoController : ControllerBase
     {
         try
         {
-            var canConnect = await _context.Database.CanConnectAsync();
+            // Tentar conectar com timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var canConnect = await _context.Database.CanConnectAsync(cts.Token);
             
             if (!canConnect)
             {
                 return new
                 {
                     conectado = false,
-                    erro = "Não foi possível conectar ao banco de dados"
+                    erro = "Não foi possível conectar ao banco de dados",
+                    detalhes = "Verifique se o Supabase está ativo e se o IP está liberado"
                 };
             }
 
@@ -103,6 +107,17 @@ public class DiagnosticoController : ControllerBase
                 }
             };
         }
+        catch (Npgsql.NpgsqlException npgsqlEx)
+        {
+            return new
+            {
+                conectado = false,
+                erro = "Erro de conexão PostgreSQL",
+                mensagem = npgsqlEx.Message,
+                codigoErro = npgsqlEx.SqlState,
+                detalhes = "Verifique a connection string, credenciais e se o Supabase está ativo"
+            };
+        }
         catch (Exception ex)
         {
             return new
@@ -110,7 +125,8 @@ public class DiagnosticoController : ControllerBase
                 conectado = false,
                 erro = ex.Message,
                 tipoErro = ex.GetType().Name,
-                innerException = ex.InnerException?.Message
+                innerException = ex.InnerException?.Message,
+                stackTrace = ex.StackTrace?.Substring(0, Math.Min(300, ex.StackTrace?.Length ?? 0))
             };
         }
     }

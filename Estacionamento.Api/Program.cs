@@ -72,17 +72,36 @@ else
     // Converter formato URI para connection string se necessário
     if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
     {
-        // O Npgsql aceita formato URI diretamente
         Console.WriteLine("✅ Usando formato URI do PostgreSQL");
+        // O Npgsql aceita formato URI diretamente, mas vamos garantir que está correto
+        try
+        {
+            // Testar se a URI está bem formada
+            var uri = new Uri(connectionString);
+            Console.WriteLine($"   Host: {uri.Host}, Port: {uri.Port}, Database: {uri.LocalPath.TrimStart('/')}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Erro ao parsear URI: {ex.Message}");
+        }
     }
     else
     {
         Console.WriteLine("✅ Usando formato connection string tradicional");
     }
     
-    // Use PostgreSQL (Supabase)
+    // Use PostgreSQL (Supabase) com configurações adicionais
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(connectionString));
+    {
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.CommandTimeout(30); // Timeout de 30 segundos
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+        });
+    });
     
     Console.WriteLine($"📊 Connection string configurada (tamanho: {connectionString.Length} caracteres)");
 }
