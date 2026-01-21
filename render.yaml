@@ -1,9 +1,8 @@
 services:
   - type: web
     name: estacionamento-api
-    env: dotnet
-    buildCommand: cd Estacionamento.Api && dotnet restore && dotnet publish -c Release -o ./publish
-    startCommand: cd Estacionamento.Api/publish && dotnet Estacionamento.Api.dll
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
