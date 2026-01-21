@@ -197,12 +197,8 @@ try
         c.EnableFilter();
     });
 
-    // HTTPS redirection - desabilitado no Railway (ele gerencia via proxy)
-    var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
-    if (!isRailway)
-    {
-        app.UseHttpsRedirection();
-    }
+    // HTTPS redirection - Render gerencia SSL automaticamente via proxy
+    app.UseHttpsRedirection();
 
     app.UseCors("AllowAll");
     app.UseAuthentication();
@@ -236,7 +232,6 @@ try
     Console.WriteLine($"Porta: {port}");
     Console.WriteLine($"Ambiente: {app.Environment.EnvironmentName}");
     Console.WriteLine($"Connection String configurada: {!string.IsNullOrEmpty(connectionString)}");
-    Console.WriteLine($"Railway Environment: {Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")}");
     
     app.Run();
 }
