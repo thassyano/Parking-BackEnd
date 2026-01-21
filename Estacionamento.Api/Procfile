@@ -1,2 +1,2 @@
-web: dotnet Estacionamento.Api.dll
+web: cd Estacionamento.Api && dotnet publish -c Release -o ./publish && dotnet ./publish/Estacionamento.Api.dll
 
