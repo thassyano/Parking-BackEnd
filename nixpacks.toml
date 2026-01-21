@@ -8,5 +8,5 @@ cmds = ["cd Estacionamento.Api && dotnet restore"]
 cmds = ["cd Estacionamento.Api && dotnet publish -c Release -o ./publish"]
 
 [start]
-cmd = "cd Estacionamento.Api && dotnet ./publish/Estacionamento.Api.dll"
+cmd = "cd Estacionamento.Api/publish && dotnet Estacionamento.Api.dll"
 

@@ -145,61 +145,94 @@ app.UseSwaggerUI(c =>
     c.EnableFilter();
 });
 
+// HTTPS redirection - Railway gerencia isso automaticamente
 app.UseHttpsRedirection();
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Seed initial data
-using (var scope = app.Services.CreateScope())
+// Health check endpoint
+app.MapGet("/health", () => new { 
+    status = "ok", 
+    timestamp = DateTime.UtcNow,
+    environment = builder.Environment.EnvironmentName
+});
+
+// Seed initial data (executar de forma assíncrona após o app iniciar para não bloquear)
+_ = Task.Run(async () =>
 {
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
     try
     {
-        // Ensure database is created (only for InMemory, for PostgreSQL use migrations)
-        if (string.IsNullOrEmpty(connectionString))
+        await Task.Delay(3000); // Aguarda 3 segundos para garantir que o app iniciou
+        
+        using (var scope = app.Services.CreateScope())
         {
-            context.Database.EnsureCreated();
-        }
-
-        // Seed Admin user if none exists
-        if (!context.Admins.Any())
-        {
-            var admin = new Admin
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            
+            try
             {
-                Usuario = "admin",
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                Email = "admin@estacionamento.com",
-                Ativo = true,
-                DataCriacao = DateTime.UtcNow
-            };
-            context.Admins.Add(admin);
-            context.SaveChanges();
-            logger.LogInformation("Admin padrão criado: admin / admin123");
-        }
+                // Testa conexão com o banco
+                var canConnect = await context.Database.CanConnectAsync();
+                logger.LogInformation("Teste de conexão com banco: {CanConnect}", canConnect);
+                
+                if (canConnect)
+                {
+                    // Ensure database is created (only for InMemory, for PostgreSQL use migrations)
+                    if (string.IsNullOrEmpty(connectionString))
+                    {
+                        await context.Database.EnsureCreatedAsync();
+                    }
 
-        // Seed initial price if none exists
-        if (!context.Precos.Any())
-        {
-            var preco = new Preco
+                    // Seed Admin user if none exists
+                    if (!await context.Admins.AnyAsync())
+                    {
+                        var admin = new Admin
+                        {
+                            Usuario = "admin",
+                            SenhaHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                            Email = "admin@estacionamento.com",
+                            Ativo = true,
+                            DataCriacao = DateTime.UtcNow
+                        };
+                        context.Admins.Add(admin);
+                        await context.SaveChangesAsync();
+                        logger.LogInformation("Admin padrão criado: admin / admin123");
+                    }
+
+                    // Seed initial price if none exists
+                    if (!await context.Precos.AnyAsync())
+                    {
+                        var preco = new Preco
+                        {
+                            ValorHora = 10.00m,
+                            ValorMinuto = 0.17m, // R$ 10.00 / 60 minutos
+                            DataInicio = DateTime.UtcNow,
+                            Ativo = true
+                        };
+                        context.Precos.Add(preco);
+                        await context.SaveChangesAsync();
+                        logger.LogInformation("Preço padrão criado: R$ 10,00/hora");
+                    }
+                }
+                else
+                {
+                    logger.LogWarning("Não foi possível conectar ao banco de dados. Seed não executado.");
+                }
+            }
+            catch (Exception ex)
             {
-                ValorHora = 10.00m,
-                ValorMinuto = 0.17m, // R$ 10.00 / 60 minutos
-                DataInicio = DateTime.UtcNow,
-                Ativo = true
-            };
-            context.Precos.Add(preco);
-            context.SaveChanges();
-            logger.LogInformation("Preço padrão criado: R$ 10,00/hora");
+                logger.LogError(ex, "Erro ao inicializar dados do banco: {Message}", ex.Message);
+            }
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Erro ao inicializar dados do banco");
+        // Log silencioso para não quebrar a inicialização
+        Console.WriteLine($"Erro no seed: {ex.Message}");
     }
-}
+});
 
 app.Run();
