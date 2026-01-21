@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["dotnet-sdk_8", "dotnet-runtime_8"]
+nixPkgs = ["dotnet-sdk_8"]
 
 [phases.install]
 cmds = ["cd Estacionamento.Api && dotnet restore"]
