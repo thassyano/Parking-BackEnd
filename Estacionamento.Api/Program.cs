@@ -66,28 +66,41 @@ else
 }
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "EstacionamentoSecretKey12345678901234567890";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EstacionamentoApi";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EstacionamentoApi";
+try
+{
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? "EstacionamentoSecretKey12345678901234567890";
+    var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EstacionamentoApi";
+    var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EstacionamentoApi";
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-});
+        throw new InvalidOperationException("JWT Key deve ter pelo menos 32 caracteres");
+    }
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Erro ao configurar JWT: {ex.Message}");
+    throw;
+}
 
 builder.Services.AddAuthorization();
 
@@ -127,79 +140,94 @@ builder.Services.AddScoped<IVagaService, VagaService>();
 builder.Services.AddScoped<IOcupacaoService, OcupacaoService>();
 builder.Services.AddScoped<IPrecoService, PrecoService>();
 
-var app = builder.Build();
+WebApplication app;
+try
+{
+    app = builder.Build();
+    Console.WriteLine("Aplicação construída com sucesso");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"ERRO ao construir aplicação: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    if (ex.InnerException != null)
+    {
+        Console.WriteLine($"Inner Exception: {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
+    }
+    throw;
+}
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseDeveloperExceptionPage();
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Estacionamento API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.EnableFilter();
+    });
+
+    // HTTPS redirection - desabilitado no Railway (ele gerencia via proxy)
+    var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
+    if (!isRailway)
+    {
+        app.UseHttpsRedirection();
+    }
+
+    app.UseCors("AllowAll");
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
+
+    // Health check endpoint
+    app.MapGet("/health", () => new { 
+        status = "ok", 
+        timestamp = DateTime.UtcNow,
+        environment = app.Environment.EnvironmentName,
+        hasConnectionString = !string.IsNullOrEmpty(connectionString)
+    });
+
+    Console.WriteLine("Pipeline configurado com sucesso");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"ERRO ao configurar pipeline: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    throw;
 }
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Estacionamento API v1");
-    c.RoutePrefix = "swagger";
-    c.DisplayRequestDuration();
-    c.EnableDeepLinking();
-    c.EnableFilter();
-});
+// Seed initial data - removido temporariamente para debug
+// Será executado via endpoint ou script separado após deploy bem-sucedido
 
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-
-// Seed initial data
-using (var scope = app.Services.CreateScope())
+try
 {
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    Console.WriteLine($"=== INICIANDO APLICAÇÃO ===");
+    Console.WriteLine($"Porta: {port}");
+    Console.WriteLine($"Ambiente: {app.Environment.EnvironmentName}");
+    Console.WriteLine($"Connection String configurada: {!string.IsNullOrEmpty(connectionString)}");
+    Console.WriteLine($"Railway Environment: {Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")}");
     
-    try
-    {
-        // Ensure database is created (only for InMemory, for PostgreSQL use migrations)
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            context.Database.EnsureCreated();
-        }
-
-        // Seed Admin user if none exists
-        if (!context.Admins.Any())
-        {
-            var admin = new Admin
-            {
-                Usuario = "admin",
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                Email = "admin@estacionamento.com",
-                Ativo = true,
-                DataCriacao = DateTime.UtcNow
-            };
-            context.Admins.Add(admin);
-            context.SaveChanges();
-            logger.LogInformation("Admin padrão criado: admin / admin123");
-        }
-
-        // Seed initial price if none exists
-        if (!context.Precos.Any())
-        {
-            var preco = new Preco
-            {
-                ValorHora = 10.00m,
-                ValorMinuto = 0.17m, // R$ 10.00 / 60 minutos
-                DataInicio = DateTime.UtcNow,
-                Ativo = true
-            };
-            context.Precos.Add(preco);
-            context.SaveChanges();
-            logger.LogInformation("Preço padrão criado: R$ 10,00/hora");
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Erro ao inicializar dados do banco");
-    }
+    app.Run();
 }
-
-app.Run();
+catch (Exception ex)
+{
+    Console.WriteLine($"=== ERRO FATAL ===");
+    Console.WriteLine($"Tipo: {ex.GetType().Name}");
+    Console.WriteLine($"Mensagem: {ex.Message}");
+    if (ex.InnerException != null)
+    {
+        Console.WriteLine($"Inner Exception: {ex.InnerException.GetType().Name}");
+        Console.WriteLine($"Inner Message: {ex.InnerException.Message}");
+    }
+    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+    throw;
+}
