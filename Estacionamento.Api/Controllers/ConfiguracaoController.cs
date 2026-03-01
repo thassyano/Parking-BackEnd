@@ -25,16 +25,7 @@ public class ConfiguracaoController : ControllerBase
         if (config == null)
             return NotFound(new { message = "Configuração não encontrada. Execute o seed primeiro." });
 
-        return Ok(new ConfiguracaoResponseDto
-        {
-            Id = config.Id,
-            TotalVagasCoberta = config.TotalVagasCoberta,
-            TotalVagasDescoberta = config.TotalVagasDescoberta,
-            TelefoneWhatsApp = config.TelefoneWhatsApp,
-            MensagemWhatsApp = config.MensagemWhatsApp,
-            HorasAntecedenciaConfirmacao = config.HorasAntecedenciaConfirmacao,
-            DataAtualizacao = config.DataAtualizacao
-        });
+        return Ok(MapToResponse(config));
     }
 
     [HttpPut]
@@ -43,12 +34,12 @@ public class ConfiguracaoController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var config = await _configuracaoRepository.ObterAsync();
-        if (config == null)
-        {
-            config = new ConfiguracaoEstacionamento();
-        }
+        var config = await _configuracaoRepository.ObterAsync() ?? new ConfiguracaoEstacionamento();
 
+        if (dto.NomeEstacionamento != null) config.NomeEstacionamento = dto.NomeEstacionamento;
+        if (dto.Endereco != null) config.Endereco = dto.Endereco;
+        if (dto.Contato != null) config.Contato = dto.Contato;
+        if (dto.Cnpj != null) config.Cnpj = dto.Cnpj;
         if (dto.TotalVagasCoberta.HasValue) config.TotalVagasCoberta = dto.TotalVagasCoberta.Value;
         if (dto.TotalVagasDescoberta.HasValue) config.TotalVagasDescoberta = dto.TotalVagasDescoberta.Value;
         if (dto.TelefoneWhatsApp != null) config.TelefoneWhatsApp = dto.TelefoneWhatsApp;
@@ -56,16 +47,21 @@ public class ConfiguracaoController : ControllerBase
         if (dto.HorasAntecedenciaConfirmacao.HasValue) config.HorasAntecedenciaConfirmacao = dto.HorasAntecedenciaConfirmacao.Value;
 
         var atualizada = await _configuracaoRepository.CriarOuAtualizarAsync(config);
-
-        return Ok(new ConfiguracaoResponseDto
-        {
-            Id = atualizada.Id,
-            TotalVagasCoberta = atualizada.TotalVagasCoberta,
-            TotalVagasDescoberta = atualizada.TotalVagasDescoberta,
-            TelefoneWhatsApp = atualizada.TelefoneWhatsApp,
-            MensagemWhatsApp = atualizada.MensagemWhatsApp,
-            HorasAntecedenciaConfirmacao = atualizada.HorasAntecedenciaConfirmacao,
-            DataAtualizacao = atualizada.DataAtualizacao
-        });
+        return Ok(MapToResponse(atualizada));
     }
+
+    private static ConfiguracaoResponseDto MapToResponse(ConfiguracaoEstacionamento c) => new()
+    {
+        Id = c.Id,
+        NomeEstacionamento = c.NomeEstacionamento,
+        Endereco = c.Endereco,
+        Contato = c.Contato,
+        Cnpj = c.Cnpj,
+        TotalVagasCoberta = c.TotalVagasCoberta,
+        TotalVagasDescoberta = c.TotalVagasDescoberta,
+        TelefoneWhatsApp = c.TelefoneWhatsApp,
+        MensagemWhatsApp = c.MensagemWhatsApp,
+        HorasAntecedenciaConfirmacao = c.HorasAntecedenciaConfirmacao,
+        DataAtualizacao = c.DataAtualizacao
+    };
 }

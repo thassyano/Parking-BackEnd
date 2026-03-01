@@ -1,28 +1,32 @@
 using System.ComponentModel.DataAnnotations;
-using Estacionamento.Api.Domain.Entities;
 
 namespace Estacionamento.Api.Application.DTOs;
 
-public class CriarReservaDto
+// === FLUXO ONLINE ===
+public class CriarReservaOnlineDto
 {
-    [Required]
-    public int ClienteId { get; set; }
+    [Required(ErrorMessage = "O nome é obrigatório")]
+    public string NomeCliente { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    public string TelefoneCliente { get; set; } = string.Empty;
+
+    public string? CpfCliente { get; set; }
 
     [Required]
-    public string TipoVaga { get; set; } = "Coberta"; // "Coberta" ou "Descoberta"
+    public string TipoVaga { get; set; } = "Coberta";
 
     [Required]
-    public DateTime DataReserva { get; set; }
+    public DateTime DataEntrada { get; set; }
 
+    [Required]
+    [Range(1, 365)]
     public int QtdDias { get; set; } = 1;
-
-    public string? FormaPagamento { get; set; } // "Pix", "CartaoCredito", "CartaoDebito", "Dinheiro"
-
-    public string Origem { get; set; } = "Online"; // "Online" ou "Presencial"
 
     public string? Observacoes { get; set; }
 }
 
+// === FLUXO PRESENCIAL ===
 public class CriarReservaPresencialDto
 {
     [Required(ErrorMessage = "O nome é obrigatório")]
@@ -31,51 +35,64 @@ public class CriarReservaPresencialDto
     [Required(ErrorMessage = "O telefone é obrigatório")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
-    public string? EmailCliente { get; set; }
-    public string? PlacaVeiculo { get; set; }
-    public string? ModeloVeiculo { get; set; }
-    public string? CorVeiculo { get; set; }
+    public string? CpfCliente { get; set; }
+
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
     public string TipoVaga { get; set; } = "Coberta";
 
     [Required]
-    public DateTime DataReserva { get; set; }
+    public DateTime DataEntrada { get; set; }
 
+    [Required]
+    [Range(1, 365)]
     public int QtdDias { get; set; } = 1;
 
-    public string? FormaPagamento { get; set; }
     public string? Observacoes { get; set; }
 }
 
+// === Associar placa quando online chega ===
+public class AssociarPlacaDto
+{
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+}
+
+// === Checkout ===
+public class CheckoutDto
+{
+    [Required(ErrorMessage = "A forma de pagamento é obrigatória")]
+    public string FormaPagamento { get; set; } = string.Empty;
+}
+
+// === Response ===
 public class ReservaResponseDto
 {
     public int Id { get; set; }
-    public ClienteResumoDto Cliente { get; set; } = null!;
+    public string NomeCliente { get; set; } = string.Empty;
+    public string TelefoneCliente { get; set; } = string.Empty;
+    public string? CpfCliente { get; set; }
+    public string? PlacaVeiculo { get; set; }
     public string TipoVaga { get; set; } = string.Empty;
-    public DateTime DataReserva { get; set; }
+    public DateTime DataEntrada { get; set; }
     public int QtdDias { get; set; }
-    public DateTime DataFim { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotal { get; set; }
-    public decimal? DescontoAplicado { get; set; }
+    public decimal DescontoAplicado { get; set; }
     public decimal ValorFinal { get; set; }
     public string? FormaPagamento { get; set; }
+    public bool Pago { get; set; }
     public string Status { get; set; } = string.Empty;
     public string Origem { get; set; } = string.Empty;
     public DateTime? DataCheckin { get; set; }
     public DateTime? DataCheckout { get; set; }
-    public bool ConfirmacaoEnviada { get; set; }
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; }
-}
-
-public class ClienteResumoDto
-{
-    public int Id { get; set; }
-    public string Nome { get; set; } = string.Empty;
-    public string Telefone { get; set; } = string.Empty;
-    public string? PlacaVeiculo { get; set; }
 }
 
 public class FiltroReservaDto
@@ -84,5 +101,4 @@ public class FiltroReservaDto
     public DateTime? DataFim { get; set; }
     public string? Status { get; set; }
     public string? TipoVaga { get; set; }
-    public int? ClienteId { get; set; }
 }

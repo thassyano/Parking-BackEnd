@@ -12,8 +12,7 @@ public enum StatusReserva
 public enum FormaPagamento
 {
     Pix,
-    CartaoCredito,
-    CartaoDebito,
+    Cartao,
     Dinheiro
 }
 
@@ -26,31 +25,38 @@ public enum OrigemReserva
 public class Reserva
 {
     public int Id { get; set; }
-    public int ClienteId { get; set; }
-    public Cliente Cliente { get; set; } = null!;
 
+    // Dados do cliente
+    public string NomeCliente { get; set; } = string.Empty;
+    public string TelefoneCliente { get; set; } = string.Empty;
+    public string? CpfCliente { get; set; }
+
+    // Dados do veículo
+    public string? PlacaVeiculo { get; set; }
+
+    // Reserva
     public TipoVaga TipoVaga { get; set; }
-    public DateTime DataReserva { get; set; }
+    public DateTime DataEntrada { get; set; }
     public int QtdDias { get; set; } = 1;
-    public DateTime DataFim { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
 
+    // Valores
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotal { get; set; }
-    public decimal? DescontoAplicado { get; set; }
+    public decimal DescontoAplicado { get; set; }
     public decimal ValorFinal { get; set; }
 
+    // Pagamento (na saída)
     public FormaPagamento? FormaPagamento { get; set; }
+    public bool Pago { get; set; }
+    public DateTime? DataPagamento { get; set; }
+
+    // Status e fluxo
     public StatusReserva Status { get; set; } = StatusReserva.Pendente;
     public OrigemReserva Origem { get; set; } = OrigemReserva.Online;
-
     public DateTime? DataCheckin { get; set; }
     public DateTime? DataCheckout { get; set; }
 
-    public bool ConfirmacaoEnviada { get; set; }
-    public DateTime? DataConfirmacao { get; set; }
-
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
-
-    public ICollection<Pagamento> Pagamentos { get; set; } = new List<Pagamento>();
 }

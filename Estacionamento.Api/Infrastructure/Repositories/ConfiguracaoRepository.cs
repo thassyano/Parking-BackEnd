@@ -33,6 +33,10 @@ public class ConfiguracaoRepository : IConfiguracaoRepository
         }
         else
         {
+            existente.NomeEstacionamento = config.NomeEstacionamento;
+            existente.Endereco = config.Endereco;
+            existente.Contato = config.Contato;
+            existente.Cnpj = config.Cnpj;
             existente.TotalVagasCoberta = config.TotalVagasCoberta;
             existente.TotalVagasDescoberta = config.TotalVagasDescoberta;
             existente.TelefoneWhatsApp = config.TelefoneWhatsApp;

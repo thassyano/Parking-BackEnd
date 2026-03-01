@@ -6,105 +6,97 @@ namespace Estacionamento.Api.Application.Services;
 
 public interface IReservaService
 {
-    Task<ReservaResponseDto> CriarAsync(CriarReservaDto dto);
+    Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto);
     Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto);
     Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync();
     Task<ReservaResponseDto?> ObterPorIdAsync(int id);
     Task<IEnumerable<ReservaResponseDto>> FiltrarAsync(FiltroReservaDto filtro);
-    Task<ReservaResponseDto?> ConfirmarAsync(int id);
+    Task<ReservaResponseDto?> AssociarPlacaAsync(int id, AssociarPlacaDto dto);
     Task<ReservaResponseDto?> CheckinAsync(int id);
-    Task<ReservaResponseDto?> CheckoutAsync(int id);
+    Task<ReservaResponseDto?> CheckoutAsync(int id, CheckoutDto dto);
     Task<ReservaResponseDto?> CancelarAsync(int id);
+    Task<CupomEntradaDto?> GerarCupomEntradaAsync(int id);
+    Task<CupomSaidaDto?> GerarCupomSaidaAsync(int id);
 }
 
 public class ReservaService : IReservaService
 {
     private readonly IReservaRepository _reservaRepository;
-    private readonly IClienteRepository _clienteRepository;
     private readonly IPrecoRepository _precoRepository;
     private readonly IConfiguracaoRepository _configuracaoRepository;
-    private readonly IClienteService _clienteService;
 
     public ReservaService(
         IReservaRepository reservaRepository,
-        IClienteRepository clienteRepository,
         IPrecoRepository precoRepository,
-        IConfiguracaoRepository configuracaoRepository,
-        IClienteService clienteService)
+        IConfiguracaoRepository configuracaoRepository)
     {
         _reservaRepository = reservaRepository;
-        _clienteRepository = clienteRepository;
         _precoRepository = precoRepository;
         _configuracaoRepository = configuracaoRepository;
-        _clienteService = clienteService;
     }
 
-    public async Task<ReservaResponseDto> CriarAsync(CriarReservaDto dto)
+    public async Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto)
     {
-        var cliente = await _clienteRepository.ObterPorIdAsync(dto.ClienteId)
-            ?? throw new InvalidOperationException("Cliente não encontrado");
-
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
 
-        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataReserva, dto.QtdDias);
-
-        FormaPagamento? formaPagamento = null;
-        if (!string.IsNullOrEmpty(dto.FormaPagamento))
-            formaPagamento = Enum.Parse<FormaPagamento>(dto.FormaPagamento, true);
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
 
         var valorTotal = preco.ValorDiaria * dto.QtdDias;
-        decimal? desconto = null;
-        var valorFinal = valorTotal;
-
-        if (formaPagamento == FormaPagamento.Pix && preco.DescontoPix.HasValue && preco.DescontoPix.Value > 0)
-        {
-            desconto = valorTotal * (preco.DescontoPix.Value / 100);
-            valorFinal = valorTotal - desconto.Value;
-        }
 
         var reserva = new Reserva
         {
-            ClienteId = dto.ClienteId,
+            NomeCliente = dto.NomeCliente,
+            TelefoneCliente = dto.TelefoneCliente,
+            CpfCliente = dto.CpfCliente,
             TipoVaga = tipoVaga,
-            DataReserva = dto.DataReserva.Date,
+            DataEntrada = dto.DataEntrada.Date,
             QtdDias = dto.QtdDias,
-            DataFim = dto.DataReserva.Date.AddDays(dto.QtdDias - 1),
+            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
-            DescontoAplicado = desconto,
-            ValorFinal = valorFinal,
-            FormaPagamento = formaPagamento,
-            Origem = Enum.Parse<OrigemReserva>(dto.Origem, true),
+            ValorFinal = valorTotal,
+            Origem = OrigemReserva.Online,
+            Status = StatusReserva.Pendente,
             Observacoes = dto.Observacoes
         };
 
         var criada = await _reservaRepository.CriarAsync(reserva);
-
-        // Recarregar com includes
-        var completa = await _reservaRepository.ObterPorIdAsync(criada.Id);
-        return MapToResponse(completa!);
+        return MapToResponse(criada);
     }
 
     public async Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto)
     {
-        var cliente = await _clienteService.ObterOuCriarPorTelefoneAsync(
-            dto.NomeCliente, dto.TelefoneCliente, dto.EmailCliente,
-            dto.PlacaVeiculo, dto.ModeloVeiculo, dto.CorVeiculo);
+        var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
+        var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
+            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
 
-        var reservaDto = new CriarReservaDto
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
+
+        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+
+        var reserva = new Reserva
         {
-            ClienteId = cliente.Id,
-            TipoVaga = dto.TipoVaga,
-            DataReserva = dto.DataReserva,
+            NomeCliente = dto.NomeCliente,
+            TelefoneCliente = dto.TelefoneCliente,
+            CpfCliente = dto.CpfCliente,
+            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
+            TipoVaga = tipoVaga,
+            DataEntrada = dto.DataEntrada.Date,
             QtdDias = dto.QtdDias,
-            FormaPagamento = dto.FormaPagamento,
-            Origem = "Presencial",
+            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
+            ValorDiaria = preco.ValorDiaria,
+            ValorTotal = valorTotal,
+            ValorFinal = valorTotal,
+            Origem = OrigemReserva.Presencial,
+            Status = StatusReserva.CheckinRealizado,
+            DataCheckin = DateTime.UtcNow,
             Observacoes = dto.Observacoes
         };
 
-        return await CriarAsync(reservaDto);
+        var criada = await _reservaRepository.CriarAsync(reserva);
+        return MapToResponse(criada);
     }
 
     public async Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync()
@@ -130,19 +122,17 @@ public class ReservaService : IReservaService
             tipoVaga = Enum.Parse<TipoVaga>(filtro.TipoVaga, true);
 
         var reservas = await _reservaRepository.ObterFiltradoAsync(
-            filtro.DataInicio, filtro.DataFim, status, tipoVaga, filtro.ClienteId);
+            filtro.DataInicio, filtro.DataFim, status, tipoVaga);
 
         return reservas.Select(MapToResponse);
     }
 
-    public async Task<ReservaResponseDto?> ConfirmarAsync(int id)
+    public async Task<ReservaResponseDto?> AssociarPlacaAsync(int id, AssociarPlacaDto dto)
     {
         var reserva = await _reservaRepository.ObterPorIdAsync(id);
         if (reserva == null) return null;
 
-        reserva.Status = StatusReserva.Confirmada;
-        reserva.DataConfirmacao = DateTime.UtcNow;
-        reserva.ConfirmacaoEnviada = true;
+        reserva.PlacaVeiculo = dto.PlacaVeiculo.ToUpper();
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -153,7 +143,10 @@ public class ReservaService : IReservaService
         var reserva = await _reservaRepository.ObterPorIdAsync(id);
         if (reserva == null) return null;
 
-        if (reserva.Status != StatusReserva.Confirmada && reserva.Status != StatusReserva.Pendente)
+        if (string.IsNullOrEmpty(reserva.PlacaVeiculo))
+            throw new InvalidOperationException("Associe a placa do veículo antes de fazer check-in");
+
+        if (reserva.Status != StatusReserva.Pendente && reserva.Status != StatusReserva.Confirmada)
             throw new InvalidOperationException("Reserva não pode fazer check-in no status atual");
 
         reserva.Status = StatusReserva.CheckinRealizado;
@@ -163,7 +156,7 @@ public class ReservaService : IReservaService
         return MapToResponse(reserva);
     }
 
-    public async Task<ReservaResponseDto?> CheckoutAsync(int id)
+    public async Task<ReservaResponseDto?> CheckoutAsync(int id, CheckoutDto dto)
     {
         var reserva = await _reservaRepository.ObterPorIdAsync(id);
         if (reserva == null) return null;
@@ -171,6 +164,22 @@ public class ReservaService : IReservaService
         if (reserva.Status != StatusReserva.CheckinRealizado)
             throw new InvalidOperationException("Check-in não foi realizado");
 
+        var formaPagamento = Enum.Parse<FormaPagamento>(dto.FormaPagamento, true);
+
+        var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga);
+        decimal desconto = 0;
+
+        if (formaPagamento == FormaPagamento.Pix || formaPagamento == FormaPagamento.Dinheiro)
+        {
+            var descontoPorDia = preco?.DescontoPixDinheiro ?? 0;
+            desconto = descontoPorDia * reserva.QtdDias;
+        }
+
+        reserva.FormaPagamento = formaPagamento;
+        reserva.DescontoAplicado = desconto;
+        reserva.ValorFinal = reserva.ValorTotal - desconto;
+        reserva.Pago = true;
+        reserva.DataPagamento = DateTime.UtcNow;
         reserva.Status = StatusReserva.CheckoutRealizado;
         reserva.DataCheckout = DateTime.UtcNow;
 
@@ -187,12 +196,62 @@ public class ReservaService : IReservaService
             throw new InvalidOperationException("Não é possível cancelar uma reserva já finalizada");
 
         reserva.Status = StatusReserva.Cancelada;
-
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
     }
 
-    private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataReserva, int qtdDias)
+    public async Task<CupomEntradaDto?> GerarCupomEntradaAsync(int id)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null) return null;
+
+        var config = await _configuracaoRepository.ObterAsync();
+
+        return new CupomEntradaDto
+        {
+            NomeEstacionamento = config?.NomeEstacionamento ?? "Estacionamento",
+            Endereco = config?.Endereco,
+            Contato = config?.Contato,
+            Cnpj = config?.Cnpj,
+            Numero = reserva.Id,
+            PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
+            DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
+            TipoVaga = reserva.TipoVaga.ToString(),
+            QtdDias = reserva.QtdDias,
+            DataSaidaPrevista = reserva.DataSaidaPrevista,
+            ValorDiaria = reserva.ValorDiaria,
+            ValorTotal = reserva.ValorTotal
+        };
+    }
+
+    public async Task<CupomSaidaDto?> GerarCupomSaidaAsync(int id)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null || reserva.Status != StatusReserva.CheckoutRealizado) return null;
+
+        var config = await _configuracaoRepository.ObterAsync();
+
+        return new CupomSaidaDto
+        {
+            NomeEstacionamento = config?.NomeEstacionamento ?? "Estacionamento",
+            Endereco = config?.Endereco,
+            Contato = config?.Contato,
+            Cnpj = config?.Cnpj,
+            Numero = reserva.Id,
+            PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
+            DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
+            DataHoraSaida = reserva.DataCheckout ?? DateTime.UtcNow,
+            TipoVaga = reserva.TipoVaga.ToString(),
+            QtdDias = reserva.QtdDias,
+            ValorDiaria = reserva.ValorDiaria,
+            ValorTotal = reserva.ValorTotal,
+            DescontoAplicado = reserva.DescontoAplicado,
+            ValorFinal = reserva.ValorFinal,
+            FormaPagamento = reserva.FormaPagamento?.ToString() ?? "-"
+        };
+    }
+
+    private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias)
     {
         var config = await _configuracaoRepository.ObterAsync()
             ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada. Execute o seed primeiro.");
@@ -203,7 +262,7 @@ public class ReservaService : IReservaService
 
         for (int i = 0; i < qtdDias; i++)
         {
-            var data = dataReserva.Date.AddDays(i);
+            var data = dataEntrada.Date.AddDays(i);
             var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, data);
 
             if (ocupadas >= totalVagas)
@@ -214,27 +273,24 @@ public class ReservaService : IReservaService
     private static ReservaResponseDto MapToResponse(Reserva r) => new()
     {
         Id = r.Id,
-        Cliente = new ClienteResumoDto
-        {
-            Id = r.Cliente.Id,
-            Nome = r.Cliente.Nome,
-            Telefone = r.Cliente.Telefone,
-            PlacaVeiculo = r.Cliente.PlacaVeiculo
-        },
+        NomeCliente = r.NomeCliente,
+        TelefoneCliente = r.TelefoneCliente,
+        CpfCliente = r.CpfCliente,
+        PlacaVeiculo = r.PlacaVeiculo,
         TipoVaga = r.TipoVaga.ToString(),
-        DataReserva = r.DataReserva,
+        DataEntrada = r.DataEntrada,
         QtdDias = r.QtdDias,
-        DataFim = r.DataFim,
+        DataSaidaPrevista = r.DataSaidaPrevista,
         ValorDiaria = r.ValorDiaria,
         ValorTotal = r.ValorTotal,
         DescontoAplicado = r.DescontoAplicado,
         ValorFinal = r.ValorFinal,
         FormaPagamento = r.FormaPagamento?.ToString(),
+        Pago = r.Pago,
         Status = r.Status.ToString(),
         Origem = r.Origem.ToString(),
         DataCheckin = r.DataCheckin,
         DataCheckout = r.DataCheckout,
-        ConfirmacaoEnviada = r.ConfirmacaoEnviada,
         Observacoes = r.Observacoes,
         DataCriacao = r.DataCriacao
     };

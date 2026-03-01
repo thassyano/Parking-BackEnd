@@ -60,11 +60,11 @@ public class PrecoRepository : IPrecoRepository
 
     public async Task<Preco> CriarAsync(Preco preco)
     {
-        var precosAnteriores = await _context.Precos
+        var anteriores = await _context.Precos
             .Where(p => p.Ativo && p.TipoVaga == preco.TipoVaga)
             .ToListAsync();
 
-        foreach (var anterior in precosAnteriores)
+        foreach (var anterior in anteriores)
         {
             anterior.Ativo = false;
             anterior.DataFim ??= preco.DataInicio;

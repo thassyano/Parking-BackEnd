@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Estacionamento.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class Reestruturacao : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -31,32 +31,15 @@ namespace Estacionamento.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Clientes",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Nome = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Telefone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    Cpf = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: true),
-                    PlacaVeiculo = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    ModeloVeiculo = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    CorVeiculo = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
-                    DataCadastro = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Ativo = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Clientes", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Configuracoes",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    NomeEstacionamento = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Endereco = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    Contato = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    Cnpj = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     TotalVagasCoberta = table.Column<int>(type: "integer", nullable: false),
                     TotalVagasDescoberta = table.Column<int>(type: "integer", nullable: false),
                     TelefoneWhatsApp = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
@@ -77,7 +60,7 @@ namespace Estacionamento.Api.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     TipoVaga = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     ValorDiaria = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DescontoPix = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
+                    DescontoPixDinheiro = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     DataInicio = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DataFim = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Ativo = table.Column<bool>(type: "boolean", nullable: false)
@@ -93,59 +76,32 @@ namespace Estacionamento.Api.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ClienteId = table.Column<int>(type: "integer", nullable: false),
+                    NomeCliente = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    TelefoneCliente = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    CpfCliente = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: true),
+                    PlacaVeiculo = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
+                    CorVeiculo = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
                     TipoVaga = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    DataReserva = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DataEntrada = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     QtdDias = table.Column<int>(type: "integer", nullable: false),
-                    DataFim = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DataSaidaPrevista = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ValorDiaria = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ValorTotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DescontoAplicado = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    DescontoAplicado = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ValorFinal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     FormaPagamento = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    Pago = table.Column<bool>(type: "boolean", nullable: false),
+                    DataPagamento = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Status = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
                     Origem = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     DataCheckin = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DataCheckout = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ConfirmacaoEnviada = table.Column<bool>(type: "boolean", nullable: false),
-                    DataConfirmacao = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Observacoes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     DataCriacao = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Reservas", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Reservas_Clientes_ClienteId",
-                        column: x => x.ClienteId,
-                        principalTable: "Clientes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Pagamentos",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ReservaId = table.Column<int>(type: "integer", nullable: false),
-                    Valor = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    FormaPagamento = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    DataPagamento = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Comprovante = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
-                    Observacao = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Pagamentos", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Pagamentos_Reservas_ReservaId",
-                        column: x => x.ReservaId,
-                        principalTable: "Reservas",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
@@ -161,19 +117,9 @@ namespace Estacionamento.Api.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Pagamentos_ReservaId",
-                table: "Pagamentos",
-                column: "ReservaId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Reservas_ClienteId",
+                name: "IX_Reservas_DataEntrada",
                 table: "Reservas",
-                column: "ClienteId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Reservas_DataReserva",
-                table: "Reservas",
-                column: "DataReserva");
+                column: "DataEntrada");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Reservas_Status",
@@ -191,16 +137,10 @@ namespace Estacionamento.Api.Migrations
                 name: "Configuracoes");
 
             migrationBuilder.DropTable(
-                name: "Pagamentos");
-
-            migrationBuilder.DropTable(
                 name: "Precos");
 
             migrationBuilder.DropTable(
                 name: "Reservas");
-
-            migrationBuilder.DropTable(
-                name: "Clientes");
         }
     }
 }

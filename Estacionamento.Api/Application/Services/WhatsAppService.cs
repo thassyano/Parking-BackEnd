@@ -1,5 +1,4 @@
 using Estacionamento.Api.Application.DTOs;
-using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
@@ -33,24 +32,22 @@ public class WhatsAppService : IWhatsAppService
         if (string.IsNullOrEmpty(config.TelefoneWhatsApp))
             throw new InvalidOperationException("Telefone WhatsApp não configurado");
 
-        var template = config.MensagemWhatsApp ?? "Olá! Fiz uma reserva no estacionamento.\n\nNome: {nome}\nData: {data}\nTipo: {tipo}\nDias: {dias}\nValor: R$ {valor}";
+        var template = config.MensagemWhatsApp
+            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nEntrada: {entrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}";
 
         var mensagem = template
-            .Replace("{nome}", reserva.Cliente.Nome)
-            .Replace("{data}", reserva.DataReserva.ToString("dd/MM/yyyy"))
-            .Replace("{dataFim}", reserva.DataFim.ToString("dd/MM/yyyy"))
+            .Replace("{id}", reserva.Id.ToString())
+            .Replace("{nome}", reserva.NomeCliente)
+            .Replace("{entrada}", reserva.DataEntrada.ToString("dd/MM/yyyy"))
+            .Replace("{saida}", reserva.DataSaidaPrevista.ToString("dd/MM/yyyy"))
             .Replace("{tipo}", reserva.TipoVaga.ToString())
             .Replace("{dias}", reserva.QtdDias.ToString())
-            .Replace("{valor}", reserva.ValorFinal.ToString("N2"))
-            .Replace("{placa}", reserva.Cliente.PlacaVeiculo ?? "-")
-            .Replace("{id}", reserva.Id.ToString());
+            .Replace("{valorDiaria}", reserva.ValorDiaria.ToString("N2"))
+            .Replace("{valorTotal}", reserva.ValorTotal.ToString("N2"));
 
         var telefoneFormatado = config.TelefoneWhatsApp
-            .Replace(" ", "")
-            .Replace("-", "")
-            .Replace("(", "")
-            .Replace(")", "")
-            .Replace("+", "");
+            .Replace(" ", "").Replace("-", "")
+            .Replace("(", "").Replace(")", "").Replace("+", "");
 
         var url = $"https://wa.me/{telefoneFormatado}?text={Uri.EscapeDataString(mensagem)}";
 

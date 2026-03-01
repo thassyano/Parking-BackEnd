@@ -56,7 +56,7 @@ public class PrecosController : ControllerBase
 
         try
         {
-            var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPix, dto.DataInicio);
+            var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPixDinheiro, dto.DataInicio);
             return CreatedAtAction(nameof(ObterAtivoPorTipo), new { tipoVaga = tipo.ToString() }, preco);
         }
         catch (InvalidOperationException ex)

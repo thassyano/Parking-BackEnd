@@ -19,7 +19,7 @@ public class SeedController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Seed([FromBody] SeedDto? dto = null)
+    public async Task<IActionResult> Seed([FromBody] SeedDto dto)
     {
         try
         {
@@ -27,105 +27,57 @@ public class SeedController : ControllerBase
             if (!canConnect)
                 return StatusCode(500, new { message = "Não foi possível conectar ao banco de dados" });
 
-            await _context.Database.MigrateAsync();
+            if (await _context.Admins.AnyAsync())
+                return BadRequest(new { message = "Admin já existe" });
 
-            var resultado = new List<string>();
-
-            if (!await _context.Admins.AnyAsync())
+            var admin = new Admin
             {
-                var admin = new Admin
-                {
-                    Usuario = dto?.UsuarioAdmin ?? "admin",
-                    SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto?.SenhaAdmin ?? "admin123"),
-                    Email = dto?.EmailAdmin ?? "admin@estacionamento.com",
-                    Nome = dto?.NomeAdmin ?? "Administrador"
-                };
-                _context.Admins.Add(admin);
-                resultado.Add($"Admin '{admin.Usuario}' criado");
-            }
-            else
-            {
-                resultado.Add("Admin já existe - não recriado");
-            }
+                Usuario = dto.Usuario,
+                SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
+                Email = dto.Email,
+                Nome = dto.Usuario
+            };
+            _context.Admins.Add(admin);
 
             if (!await _context.Configuracoes.AnyAsync())
             {
-                var config = new ConfiguracaoEstacionamento
+                _context.Configuracoes.Add(new ConfiguracaoEstacionamento
                 {
-                    TotalVagasCoberta = dto?.TotalVagasCoberta ?? 20,
-                    TotalVagasDescoberta = dto?.TotalVagasDescoberta ?? 30,
-                    TelefoneWhatsApp = dto?.TelefoneWhatsApp,
-                    MensagemWhatsApp = "Olá! Fiz uma reserva no estacionamento.\n\nNome: {nome}\nData: {data} a {dataFim}\nTipo: {tipo}\nDias: {dias}\nValor: R$ {valor}\nPlaca: {placa}",
+                    NomeEstacionamento = "Estacionamento DF Park",
+                    Endereco = "Quadra SMPW QD. 6 CJ. 1 LT 1-B, Núcleo Bandeirante",
+                    Contato = "61 99572-9976",
+                    Cnpj = "51.904.295/0001-61",
+                    TotalVagasCoberta = 20,
+                    TotalVagasDescoberta = 30,
+                    TelefoneWhatsApp = "5561995729976",
+                    MensagemWhatsApp = "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nEntrada: {entrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}",
                     HorasAntecedenciaConfirmacao = 24
-                };
-                _context.Configuracoes.Add(config);
-                resultado.Add("Configuração inicial criada");
-            }
-            else
-            {
-                resultado.Add("Configuração já existe - não recriada");
+                });
             }
 
             if (!await _context.Precos.AnyAsync())
             {
-                var precos = new[]
-                {
-                    new Preco
-                    {
-                        TipoVaga = TipoVaga.Coberta,
-                        ValorDiaria = dto?.ValorDiariaCoberta ?? 30.00m,
-                        DescontoPix = dto?.DescontoPix ?? 5.0m,
-                        DataInicio = DateTime.UtcNow,
-                        Ativo = true
-                    },
-                    new Preco
-                    {
-                        TipoVaga = TipoVaga.Descoberta,
-                        ValorDiaria = dto?.ValorDiariaDescoberta ?? 20.00m,
-                        DescontoPix = dto?.DescontoPix ?? 5.0m,
-                        DataInicio = DateTime.UtcNow,
-                        Ativo = true
-                    }
-                };
-                _context.Precos.AddRange(precos);
-                resultado.Add($"Preços iniciais criados - Coberta: R${precos[0].ValorDiaria}, Descoberta: R${precos[1].ValorDiaria}");
-            }
-            else
-            {
-                resultado.Add("Preços já existem - não recriados");
+                _context.Precos.AddRange(
+                    new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true },
+                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true }
+                );
             }
 
             await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                message = "Seed executado com sucesso",
-                resultados = resultado
-            });
+            return Ok(new { message = "Seed executado com sucesso" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao executar seed");
-            return StatusCode(500, new
-            {
-                message = "Erro ao executar seed",
-                error = ex.Message,
-                inner = ex.InnerException?.Message
-            });
+            return StatusCode(500, new { message = "Erro ao executar seed", error = ex.Message });
         }
     }
 }
 
 public class SeedDto
 {
-    public string? UsuarioAdmin { get; set; }
-    public string? SenhaAdmin { get; set; }
-    public string? EmailAdmin { get; set; }
-    public string? NomeAdmin { get; set; }
-    public int? TotalVagasCoberta { get; set; }
-    public int? TotalVagasDescoberta { get; set; }
-    public decimal? ValorDiariaCoberta { get; set; }
-    public decimal? ValorDiariaDescoberta { get; set; }
-    public decimal? DescontoPix { get; set; }
-    public string? TelefoneWhatsApp { get; set; }
+    public string Usuario { get; set; } = string.Empty;
+    public string Senha { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
 }

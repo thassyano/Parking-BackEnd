@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Estacionamento.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260301191133_Reestruturacao")]
-    partial class Reestruturacao
+    [Migration("20260301205955_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -70,55 +70,6 @@ namespace Estacionamento.Api.Migrations
                     b.ToTable("Admins");
                 });
 
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Cliente", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Ativo")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("CorVeiculo")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("Cpf")
-                        .HasMaxLength(14)
-                        .HasColumnType("character varying(14)");
-
-                    b.Property<DateTime>("DataCadastro")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("ModeloVeiculo")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("PlacaVeiculo")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("Telefone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Clientes");
-                });
-
             modelBuilder.Entity("Estacionamento.Api.Domain.Entities.ConfiguracaoEstacionamento", b =>
                 {
                     b.Property<int>("Id")
@@ -127,8 +78,20 @@ namespace Estacionamento.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Cnpj")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Contato")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endereco")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<int>("HorasAntecedenciaConfirmacao")
                         .HasColumnType("integer");
@@ -136,6 +99,11 @@ namespace Estacionamento.Api.Migrations
                     b.Property<string>("MensagemWhatsApp")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("NomeEstacionamento")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("TelefoneWhatsApp")
                         .HasMaxLength(20)
@@ -150,49 +118,6 @@ namespace Estacionamento.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Configuracoes");
-                });
-
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Pagamento", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Comprovante")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("DataPagamento")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FormaPagamento")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Observacao")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("ReservaId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("Valor")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReservaId");
-
-                    b.ToTable("Pagamentos");
                 });
 
             modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Preco", b =>
@@ -212,9 +137,9 @@ namespace Estacionamento.Api.Migrations
                     b.Property<DateTime>("DataInicio")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal?>("DescontoPix")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)");
+                    b.Property<decimal>("DescontoPixDinheiro")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("TipoVaga")
                         .IsRequired()
@@ -238,11 +163,13 @@ namespace Estacionamento.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ClienteId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CorVeiculo")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
-                    b.Property<bool>("ConfirmacaoEnviada")
-                        .HasColumnType("boolean");
+                    b.Property<string>("CpfCliente")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
 
                     b.Property<DateTime?>("DataCheckin")
                         .HasColumnType("timestamp with time zone");
@@ -250,25 +177,30 @@ namespace Estacionamento.Api.Migrations
                     b.Property<DateTime?>("DataCheckout")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DataConfirmacao")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("DataFim")
+                    b.Property<DateTime>("DataEntrada")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("DataReserva")
+                    b.Property<DateTime?>("DataPagamento")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal?>("DescontoAplicado")
+                    b.Property<DateTime>("DataSaidaPrevista")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DescontoAplicado")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("FormaPagamento")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("NomeCliente")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Observacoes")
                         .HasMaxLength(500)
@@ -279,6 +211,13 @@ namespace Estacionamento.Api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<bool>("Pago")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PlacaVeiculo")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<int>("QtdDias")
                         .HasColumnType("integer");
 
@@ -286,6 +225,11 @@ namespace Estacionamento.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TelefoneCliente")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("TipoVaga")
                         .IsRequired()
@@ -306,45 +250,11 @@ namespace Estacionamento.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClienteId");
-
-                    b.HasIndex("DataReserva");
+                    b.HasIndex("DataEntrada");
 
                     b.HasIndex("Status");
 
                     b.ToTable("Reservas");
-                });
-
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Pagamento", b =>
-                {
-                    b.HasOne("Estacionamento.Api.Domain.Entities.Reserva", "Reserva")
-                        .WithMany("Pagamentos")
-                        .HasForeignKey("ReservaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Reserva");
-                });
-
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Reserva", b =>
-                {
-                    b.HasOne("Estacionamento.Api.Domain.Entities.Cliente", "Cliente")
-                        .WithMany("Reservas")
-                        .HasForeignKey("ClienteId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Cliente");
-                });
-
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Cliente", b =>
-                {
-                    b.Navigation("Reservas");
-                });
-
-            modelBuilder.Entity("Estacionamento.Api.Domain.Entities.Reserva", b =>
-                {
-                    b.Navigation("Pagamentos");
                 });
 #pragma warning restore 612, 618
         }

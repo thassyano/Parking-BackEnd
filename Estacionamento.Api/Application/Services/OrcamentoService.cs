@@ -36,28 +36,23 @@ public class OrcamentoService : IOrcamentoService
         var totalVagas = config == null ? 0
             : tipoVaga == TipoVaga.Coberta ? config.TotalVagasCoberta : config.TotalVagasDescoberta;
 
-        var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, dto.DataReserva.Date);
+        var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, dto.DataEntrada.Date);
 
         var valorCartao = preco.ValorDiaria * dto.QtdDias;
-        var valorPix = valorCartao;
-        decimal? descontoPix = preco.DescontoPix;
-
-        if (descontoPix.HasValue && descontoPix.Value > 0)
-        {
-            valorPix = valorCartao - (valorCartao * (descontoPix.Value / 100));
-        }
+        var descontoTotal = preco.DescontoPixDinheiro * dto.QtdDias;
+        var valorPixDinheiro = valorCartao - descontoTotal;
 
         return new OrcamentoResponseDto
         {
             TipoVaga = tipoVaga.ToString(),
-            DataReserva = dto.DataReserva.Date,
+            DataEntrada = dto.DataEntrada.Date,
             QtdDias = dto.QtdDias,
-            DataFim = dto.DataReserva.Date.AddDays(dto.QtdDias - 1),
+            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
             ValorDiaria = preco.ValorDiaria,
             ValorTotalCartao = valorCartao,
-            ValorTotalPix = valorPix,
-            DescontoPix = descontoPix,
-            EconomiaComPix = valorCartao - valorPix,
+            ValorTotalPixDinheiro = valorPixDinheiro,
+            DescontoPixDinheiroPorDia = preco.DescontoPixDinheiro,
+            EconomiaTotal = descontoTotal,
             VagasDisponiveis = ocupadas < totalVagas,
             VagasRestantes = Math.Max(0, totalVagas - ocupadas)
         };

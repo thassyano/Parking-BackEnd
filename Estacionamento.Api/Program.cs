@@ -148,14 +148,11 @@ builder.Services.AddCors(options =>
 
 // Repositories
 builder.Services.AddScoped<IPrecoRepository, PrecoRepository>();
-builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
-builder.Services.AddScoped<IPagamentoRepository, PagamentoRepository>();
 builder.Services.AddScoped<IConfiguracaoRepository, ConfiguracaoRepository>();
 
 // Services
 builder.Services.AddScoped<IPrecoService, PrecoService>();
-builder.Services.AddScoped<IClienteService, ClienteService>();
 builder.Services.AddScoped<IReservaService, ReservaService>();
 builder.Services.AddScoped<IDisponibilidadeService, DisponibilidadeService>();
 builder.Services.AddScoped<IOrcamentoService, OrcamentoService>();
