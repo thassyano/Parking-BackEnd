@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -6,7 +7,6 @@ using System.Text;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -33,20 +33,17 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(a => a.Usuario == loginDto.Usuario && a.Ativo);
 
         if (admin == null || !BCrypt.Net.BCrypt.Verify(loginDto.Senha, admin.SenhaHash))
-        {
             return Unauthorized(new { message = "Usuário ou senha inválidos" });
-        }
 
         var token = GenerateJwtToken(admin);
 
-        var response = new LoginResponseDto
+        return Ok(new LoginResponseDto
         {
             Token = token,
             Usuario = admin.Usuario,
+            Nome = admin.Nome,
             ExpiraEm = DateTime.UtcNow.AddHours(8)
-        };
-
-        return Ok(response);
+        });
     }
 
     private string GenerateJwtToken(Domain.Entities.Admin admin)
@@ -73,4 +70,3 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-

@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
+using Estacionamento.Api.Domain.Entities;
 
 namespace Estacionamento.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class PrecosController : ControllerBase
 {
     private readonly IPrecoService _precoService;
@@ -19,33 +20,44 @@ public class PrecosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> ObterTodos()
     {
-        var precos = await _precoService.ObterTodosPrecosAsync();
+        var precos = await _precoService.ObterTodosAsync();
         return Ok(precos);
     }
 
-    [HttpGet("ativo")]
-    public async Task<IActionResult> ObterPrecoAtivo()
+    [HttpGet("ativos")]
+    public async Task<IActionResult> ObterAtivos()
     {
-        var preco = await _precoService.ObterPrecoAtivoAsync();
+        var precos = await _precoService.ObterAtivosAsync();
+        return Ok(precos);
+    }
+
+    [HttpGet("ativos/{tipoVaga}")]
+    public async Task<IActionResult> ObterAtivoPorTipo(string tipoVaga)
+    {
+        if (!Enum.TryParse<TipoVaga>(tipoVaga, true, out var tipo))
+            return BadRequest(new { message = "Tipo de vaga inválido. Use 'Coberta' ou 'Descoberta'" });
+
+        var preco = await _precoService.ObterAtivoAsync(tipo);
         if (preco == null)
-            return NotFound(new { message = "Nenhum preço ativo encontrado" });
+            return NotFound(new { message = $"Nenhum preço ativo para vaga {tipoVaga}" });
 
         return Ok(preco);
     }
 
     [HttpPost]
-    public async Task<IActionResult> CriarPreco([FromBody] CriarPrecoDto dto)
+    [Authorize]
+    public async Task<IActionResult> Criar([FromBody] CriarPrecoDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
+        if (!Enum.TryParse<TipoVaga>(dto.TipoVaga, true, out var tipo))
+            return BadRequest(new { message = "Tipo de vaga inválido. Use 'Coberta' ou 'Descoberta'" });
+
         try
         {
-            var preco = await _precoService.CriarPrecoAsync(
-                dto.ValorHora, 
-                dto.ValorMinuto, 
-                dto.DataInicio);
-            return CreatedAtAction(nameof(ObterPrecoAtivo), preco);
+            var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPix, dto.DataInicio);
+            return CreatedAtAction(nameof(ObterAtivoPorTipo), new { tipoVaga = tipo.ToString() }, preco);
         }
         catch (InvalidOperationException ex)
         {
@@ -53,11 +65,3 @@ public class PrecosController : ControllerBase
         }
     }
 }
-
-public class CriarPrecoDto
-{
-    public decimal ValorHora { get; set; }
-    public decimal ValorMinuto { get; set; }
-    public DateTime? DataInicio { get; set; }
-}
-

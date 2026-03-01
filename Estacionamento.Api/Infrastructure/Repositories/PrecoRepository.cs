@@ -6,9 +6,10 @@ namespace Estacionamento.Api.Infrastructure.Repositories;
 
 public interface IPrecoRepository
 {
-    Task<IEnumerable<Preco>> ObterTodasAsync();
+    Task<IEnumerable<Preco>> ObterTodosAsync();
     Task<Preco?> ObterPorIdAsync(int id);
-    Task<Preco?> ObterPrecoAtivoAsync();
+    Task<IEnumerable<Preco>> ObterAtivosAsync();
+    Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga);
     Task<Preco> CriarAsync(Preco preco);
     Task<Preco> AtualizarAsync(Preco preco);
 }
@@ -22,7 +23,7 @@ public class PrecoRepository : IPrecoRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Preco>> ObterTodasAsync()
+    public async Task<IEnumerable<Preco>> ObterTodosAsync()
     {
         return await _context.Precos
             .OrderByDescending(p => p.DataInicio)
@@ -34,31 +35,39 @@ public class PrecoRepository : IPrecoRepository
         return await _context.Precos.FindAsync(id);
     }
 
-    public async Task<Preco?> ObterPrecoAtivoAsync()
+    public async Task<IEnumerable<Preco>> ObterAtivosAsync()
     {
         var agora = DateTime.UtcNow;
         return await _context.Precos
-            .Where(p => p.Ativo && 
-                       p.DataInicio <= agora && 
-                       (p.DataFim == null || p.DataFim >= agora))
+            .Where(p => p.Ativo &&
+                        p.DataInicio <= agora &&
+                        (p.DataFim == null || p.DataFim >= agora))
+            .OrderBy(p => p.TipoVaga)
+            .ToListAsync();
+    }
+
+    public async Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga)
+    {
+        var agora = DateTime.UtcNow;
+        return await _context.Precos
+            .Where(p => p.Ativo &&
+                        p.TipoVaga == tipoVaga &&
+                        p.DataInicio <= agora &&
+                        (p.DataFim == null || p.DataFim >= agora))
             .OrderByDescending(p => p.DataInicio)
             .FirstOrDefaultAsync();
     }
 
     public async Task<Preco> CriarAsync(Preco preco)
     {
-        // Desativar preços anteriores
         var precosAnteriores = await _context.Precos
-            .Where(p => p.Ativo)
+            .Where(p => p.Ativo && p.TipoVaga == preco.TipoVaga)
             .ToListAsync();
-        
-        foreach (var precoAnterior in precosAnteriores)
+
+        foreach (var anterior in precosAnteriores)
         {
-            precoAnterior.Ativo = false;
-            if (precoAnterior.DataFim == null)
-            {
-                precoAnterior.DataFim = preco.DataInicio;
-            }
+            anterior.Ativo = false;
+            anterior.DataFim ??= preco.DataInicio;
         }
 
         _context.Precos.Add(preco);
@@ -73,4 +82,3 @@ public class PrecoRepository : IPrecoRepository
         return preco;
     }
 }
-
