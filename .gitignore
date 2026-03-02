@@ -361,3 +361,10 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Sensitive config
+**/appsettings.Development.json
+**/appsettings.Production.json
+
+# Publish artifacts
+.publish/

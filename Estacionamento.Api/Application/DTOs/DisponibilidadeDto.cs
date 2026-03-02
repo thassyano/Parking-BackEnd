@@ -1,19 +1,19 @@
 namespace Estacionamento.Api.Application.DTOs;
 
-public class DisponibilidadeDto
+public class DisponibilidadeResponseDto
 {
-    public int TotalVagas { get; set; }
-    public int VagasOcupadas { get; set; }
-    public int VagasDisponiveis { get; set; }
-    public List<VagaDisponibilidadeDto> Vagas { get; set; } = new();
+    public DateTime Data { get; set; }
+    public int VagasCobertaTotal { get; set; }
+    public int VagasCobertaOcupadas { get; set; }
+    public int VagasCobertaDisponiveis { get; set; }
+    public int VagasDescobertaTotal { get; set; }
+    public int VagasDescobertaOcupadas { get; set; }
+    public int VagasDescobertaDisponiveis { get; set; }
 }
 
-public class VagaDisponibilidadeDto
+public class DisponibilidadePeriodoDto
 {
-    public int Id { get; set; }
-    public string Numero { get; set; } = string.Empty;
-    public bool Ocupada { get; set; }
-    public string? PlacaVeiculo { get; set; }
-    public DateTime? DataEntrada { get; set; }
+    public DateTime DataInicio { get; set; }
+    public DateTime DataFim { get; set; }
+    public List<DisponibilidadeResponseDto> Dias { get; set; } = new();
 }
-

@@ -19,16 +19,25 @@ public class DesignTimeDbContextFactory : Microsoft.EntityFrameworkCore.Design.I
 
         if (string.IsNullOrEmpty(connectionString))
         {
-            // Use InMemory for design-time if no connection string
             optionsBuilder.UseInMemoryDatabase("EstacionamentoDb");
         }
         else
         {
-            // Use PostgreSQL
-            optionsBuilder.UseNpgsql(connectionString);
+            string finalConnectionString = connectionString;
+
+            if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
+            {
+                var uri = new Uri(connectionString);
+                var userInfo = uri.UserInfo.Split(':');
+                var username = userInfo.Length > 0 ? userInfo[0] : "postgres";
+                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+
+                finalConnectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            }
+
+            optionsBuilder.UseNpgsql(finalConnectionString);
         }
 
         return new AppDbContext(optionsBuilder.Options);
     }
 }
-
