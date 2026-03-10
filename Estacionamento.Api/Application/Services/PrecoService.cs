@@ -1,13 +1,15 @@
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
 
 public interface IPrecoService
 {
-    Task<IEnumerable<Preco>> ObterTodosPrecosAsync();
-    Task<Preco?> ObterPrecoAtivoAsync();
-    Task<Preco> CriarPrecoAsync(decimal valorHora, decimal valorMinuto, DateTime? dataInicio = null);
+    Task<IEnumerable<Preco>> ObterTodosAsync();
+    Task<IEnumerable<Preco>> ObterAtivosAsync();
+    Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga);
+    Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime? dataInicio = null);
 }
 
 public class PrecoService : IPrecoService
@@ -19,30 +21,41 @@ public class PrecoService : IPrecoService
         _precoRepository = precoRepository;
     }
 
-    public async Task<IEnumerable<Preco>> ObterTodosPrecosAsync()
+    public async Task<IEnumerable<Preco>> ObterTodosAsync()
     {
-        return await _precoRepository.ObterTodasAsync();
+        return await _precoRepository.ObterTodosAsync();
     }
 
-    public async Task<Preco?> ObterPrecoAtivoAsync()
+    public async Task<IEnumerable<Preco>> ObterAtivosAsync()
     {
-        return await _precoRepository.ObterPrecoAtivoAsync();
+        return await _precoRepository.ObterAtivosAsync();
     }
 
-    public async Task<Preco> CriarPrecoAsync(decimal valorHora, decimal valorMinuto, DateTime? dataInicio = null)
+    public async Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga)
     {
-        if (valorHora <= 0 || valorMinuto <= 0)
-            throw new InvalidOperationException("Os valores devem ser maiores que zero");
+        return await _precoRepository.ObterAtivoAsync(tipoVaga);
+    }
+
+    public async Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime? dataInicio = null)
+    {
+        if (valorDiaria <= 0)
+            throw new InvalidOperationException("O valor da diária deve ser maior que zero");
+
+        if (descontoPixDinheiro < 0)
+            throw new InvalidOperationException("O desconto não pode ser negativo");
+
+        if (descontoPixDinheiro >= valorDiaria)
+            throw new InvalidOperationException("O desconto não pode ser maior ou igual ao valor da diária");
 
         var preco = new Preco
         {
-            ValorHora = valorHora,
-            ValorMinuto = valorMinuto,
-            DataInicio = dataInicio ?? DateTime.UtcNow,
+            TipoVaga = tipoVaga,
+            ValorDiaria = valorDiaria,
+            DescontoPixDinheiro = descontoPixDinheiro,
+            DataInicio = dataInicio ?? DateTimeHelper.AgoraBrasilia(),
             Ativo = true
         };
 
         return await _precoRepository.CriarAsync(preco);
     }
 }
-
