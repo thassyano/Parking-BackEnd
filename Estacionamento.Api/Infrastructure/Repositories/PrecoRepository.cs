@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 
 namespace Estacionamento.Api.Infrastructure.Repositories;
@@ -37,7 +38,7 @@ public class PrecoRepository : IPrecoRepository
 
     public async Task<IEnumerable<Preco>> ObterAtivosAsync()
     {
-        var agora = DateTime.UtcNow;
+        var agora = DateTimeHelper.AgoraBrasilia();
         return await _context.Precos
             .Where(p => p.Ativo &&
                         p.DataInicio <= agora &&
@@ -48,7 +49,7 @@ public class PrecoRepository : IPrecoRepository
 
     public async Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga)
     {
-        var agora = DateTime.UtcNow;
+        var agora = DateTimeHelper.AgoraBrasilia();
         return await _context.Precos
             .Where(p => p.Ativo &&
                         p.TipoVaga == tipoVaga &&

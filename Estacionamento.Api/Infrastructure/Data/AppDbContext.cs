@@ -14,6 +14,12 @@ public class AppDbContext : DbContext
     public DbSet<Reserva> Reservas { get; set; }
     public DbSet<ConfiguracaoEstacionamento> Configuracoes { get; set; }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>()
+            .HaveColumnType("timestamp without time zone");
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

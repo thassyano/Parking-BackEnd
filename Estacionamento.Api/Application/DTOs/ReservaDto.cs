@@ -13,11 +13,18 @@ public class CriarReservaOnlineDto
 
     public string? CpfCliente { get; set; }
 
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+
     [Required]
     public string TipoVaga { get; set; } = "Coberta";
 
     [Required]
     public DateTime DataEntrada { get; set; }
+
+    [Required]
+    public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
     [Range(1, 365)]
@@ -46,6 +53,9 @@ public class CriarReservaPresencialDto
 
     [Required]
     public DateTime DataEntrada { get; set; }
+
+    [Required]
+    public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
     [Range(1, 365)]

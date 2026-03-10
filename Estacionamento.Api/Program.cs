@@ -7,6 +7,8 @@ using Estacionamento.Api.Infrastructure.Data;
 using Estacionamento.Api.Infrastructure.Repositories;
 using Estacionamento.Api.Application.Services;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -184,7 +186,7 @@ app.MapControllers();
 app.MapGet("/health", () => new
 {
     status = "ok",
-    timestamp = DateTime.UtcNow,
+    timestamp = Estacionamento.Api.Helpers.DateTimeHelper.AgoraBrasilia(),
     environment = app.Environment.EnvironmentName
 });
 

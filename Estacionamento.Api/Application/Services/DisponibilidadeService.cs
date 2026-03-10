@@ -25,16 +25,18 @@ public class DisponibilidadeService : IDisponibilidadeService
 
     public async Task<DisponibilidadeResponseDto> ConsultarDiaAsync(DateTime data)
     {
+        var dia = data.Date;
+
         var config = await _configuracaoRepository.ObterAsync();
         if (config == null)
-            return new DisponibilidadeResponseDto { Data = data.Date };
+            return new DisponibilidadeResponseDto { Data = dia };
 
-        var cobertaOcupadas = await _reservaRepository.ContarVagasOcupadasAsync(TipoVaga.Coberta, data.Date);
-        var descobertaOcupadas = await _reservaRepository.ContarVagasOcupadasAsync(TipoVaga.Descoberta, data.Date);
+        var cobertaOcupadas = await _reservaRepository.ContarVagasOcupadasAsync(TipoVaga.Coberta, dia);
+        var descobertaOcupadas = await _reservaRepository.ContarVagasOcupadasAsync(TipoVaga.Descoberta, dia);
 
         return new DisponibilidadeResponseDto
         {
-            Data = data.Date,
+            Data = dia,
             VagasCobertaTotal = config.TotalVagasCoberta,
             VagasCobertaOcupadas = cobertaOcupadas,
             VagasCobertaDisponiveis = Math.Max(0, config.TotalVagasCoberta - cobertaOcupadas),

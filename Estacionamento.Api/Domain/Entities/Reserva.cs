@@ -1,3 +1,5 @@
+using Estacionamento.Api.Helpers;
+
 namespace Estacionamento.Api.Domain.Entities;
 
 public enum StatusReserva
@@ -58,5 +60,5 @@ public class Reserva
     public DateTime? DataCheckout { get; set; }
 
     public string? Observacoes { get; set; }
-    public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+    public DateTime DataCriacao { get; set; } = DateTimeHelper.AgoraBrasilia();
 }

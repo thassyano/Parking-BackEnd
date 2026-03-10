@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 
 namespace Estacionamento.Api.Controllers;
@@ -50,7 +51,7 @@ public class SeedController : ControllerBase
                     TotalVagasCoberta = 20,
                     TotalVagasDescoberta = 30,
                     TelefoneWhatsApp = "5561995729976",
-                    MensagemWhatsApp = "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nEntrada: {entrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}",
+                    MensagemWhatsApp = "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\nValor total: R$ {valorTotal}",
                     HorasAntecedenciaConfirmacao = 24
                 });
             }
@@ -58,8 +59,8 @@ public class SeedController : ControllerBase
             if (!await _context.Precos.AnyAsync())
             {
                 _context.Precos.AddRange(
-                    new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true },
-                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true }
+                    new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true },
+                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true }
                 );
             }
 

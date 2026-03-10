@@ -24,6 +24,9 @@ public class ReservaRepository : IReservaRepository
         _context = context;
     }
 
+    private static DateTime ToUtc(DateTime dt) =>
+        dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
+
     public async Task<IEnumerable<Reserva>> ObterTodasAsync()
     {
         return await _context.Reservas
@@ -38,8 +41,11 @@ public class ReservaRepository : IReservaRepository
 
     public async Task<IEnumerable<Reserva>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim)
     {
+        var inicio = ToUtc(dataInicio);
+        var fim = ToUtc(dataFim);
+
         return await _context.Reservas
-            .Where(r => r.DataEntrada >= dataInicio && r.DataEntrada <= dataFim)
+            .Where(r => r.DataEntrada >= inicio && r.DataEntrada <= fim)
             .OrderBy(r => r.DataEntrada)
             .ToListAsync();
     }
@@ -51,9 +57,9 @@ public class ReservaRepository : IReservaRepository
         var query = _context.Reservas.AsQueryable();
 
         if (dataInicio.HasValue)
-            query = query.Where(r => r.DataEntrada >= dataInicio.Value);
+            query = query.Where(r => r.DataEntrada >= ToUtc(dataInicio.Value));
         if (dataFim.HasValue)
-            query = query.Where(r => r.DataEntrada <= dataFim.Value);
+            query = query.Where(r => r.DataEntrada <= ToUtc(dataFim.Value));
         if (status.HasValue)
             query = query.Where(r => r.Status == status.Value);
         if (tipoVaga.HasValue)
@@ -66,6 +72,8 @@ public class ReservaRepository : IReservaRepository
 
     public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data)
     {
+        var dataUtc = ToUtc(data.Date);
+
         var statusAtivos = new[]
         {
             StatusReserva.Pendente,
@@ -76,8 +84,8 @@ public class ReservaRepository : IReservaRepository
         return await _context.Reservas
             .CountAsync(r => r.TipoVaga == tipoVaga
                 && statusAtivos.Contains(r.Status)
-                && r.DataEntrada.Date <= data.Date
-                && r.DataSaidaPrevista.Date >= data.Date);
+                && r.DataEntrada <= dataUtc
+                && r.DataSaidaPrevista >= dataUtc);
     }
 
     public async Task<Reserva> CriarAsync(Reserva reserva)

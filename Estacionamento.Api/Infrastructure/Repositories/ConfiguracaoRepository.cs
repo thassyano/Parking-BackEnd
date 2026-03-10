@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 
 namespace Estacionamento.Api.Infrastructure.Repositories;
@@ -42,7 +43,7 @@ public class ConfiguracaoRepository : IConfiguracaoRepository
             existente.TelefoneWhatsApp = config.TelefoneWhatsApp;
             existente.MensagemWhatsApp = config.MensagemWhatsApp;
             existente.HorasAntecedenciaConfirmacao = config.HorasAntecedenciaConfirmacao;
-            existente.DataAtualizacao = DateTime.UtcNow;
+            existente.DataAtualizacao = DateTimeHelper.AgoraBrasilia();
         }
 
         await _context.SaveChangesAsync();
