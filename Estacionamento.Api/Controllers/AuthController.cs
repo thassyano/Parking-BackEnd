@@ -17,26 +17,62 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext context, IConfiguration configuration)
+    public AuthController(AppDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-        var admin = await _context.Admins
-            .FirstOrDefaultAsync(a => a.Usuario == loginDto.Usuario && a.Ativo);
+            // Verificar conexão com banco
+            var canConnect = await _context.Database.CanConnectAsync();
+            if (!canConnect)
+            {
+                return StatusCode(500, new 
+                { 
+                    message = "Erro de conexão com banco de dados",
+                    error = "Não foi possível conectar ao banco. Verifique a connection string."
+                });
+            }
+
+            // Verificar se existe algum admin
+            var totalAdmins = await _context.Admins.CountAsync();
+            if (totalAdmins == 0)
+            {
+                return BadRequest(new 
+                { 
+                    message = "Nenhum admin cadastrado",
+                    hint = "Execute o endpoint /api/seed primeiro para criar o admin inicial"
+                });
+            }
+
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Usuario == loginDto.Usuario && a.Ativo);
 
         if (admin == null || !BCrypt.Net.BCrypt.Verify(loginDto.Senha, admin.SenhaHash))
             return Unauthorized(new { message = "Usuário ou senha inválidos" });
 
-        var token = GenerateJwtToken(admin);
+            // Gerar token
+            string token;
+            try
+            {
+                token = GenerateJwtToken(admin);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao gerar token JWT");
+                return StatusCode(500, new { message = "Erro ao gerar token", error = ex.Message });
+            }
 
         return Ok(new LoginResponseDto
         {

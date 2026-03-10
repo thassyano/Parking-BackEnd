@@ -50,6 +50,8 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Se não encontrar, tenta ler da variável de ambiente diretamente
 if (string.IsNullOrEmpty(connectionString))
 {
     connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")

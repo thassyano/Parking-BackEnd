@@ -1,15 +1,16 @@
 services:
   - type: web
     name: estacionamento-api
-    env: dotnet
-    buildCommand: cd Estacionamento.Api && dotnet restore && dotnet publish -c Release -o ./publish
-    startCommand: cd Estacionamento.Api/publish && dotnet Estacionamento.Api.dll
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_URLS
         value: http://0.0.0.0:$PORT
       - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: DATABASE_URL
         sync: false
       - key: Jwt__Key
         sync: false
