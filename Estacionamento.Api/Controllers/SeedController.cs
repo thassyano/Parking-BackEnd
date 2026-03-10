@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Infrastructure.Data;
 
@@ -19,65 +20,133 @@ public class SeedController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Seed([FromBody] SeedDto dto)
+    public async Task<IActionResult> Seed([FromBody] SeedDto? dto = null)
     {
         try
         {
+            // Testar conexão com o banco primeiro
+            _logger.LogInformation("Testando conexão com banco de dados...");
             var canConnect = await _context.Database.CanConnectAsync();
+            
             if (!canConnect)
-                return StatusCode(500, new { message = "Não foi possível conectar ao banco de dados" });
-
-            if (await _context.Admins.AnyAsync())
-                return BadRequest(new { message = "Admin já existe" });
-
-            var admin = new Admin
             {
-                Usuario = dto.Usuario,
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
-                Email = dto.Email,
-                Nome = dto.Usuario
-            };
-            _context.Admins.Add(admin);
+                return StatusCode(500, new 
+                { 
+                    message = "Não foi possível conectar ao banco de dados",
+                    error = "Verifique a connection string nas variáveis de ambiente"
+                });
+            }
+            
+            _logger.LogInformation("Conexão com banco estabelecida com sucesso");
 
-            if (!await _context.Configuracoes.AnyAsync())
+            // Verificar se já existe admin
+            var adminExists = false;
+            try
             {
-                _context.Configuracoes.Add(new ConfiguracaoEstacionamento
-                {
-                    NomeEstacionamento = "Estacionamento DF Park",
-                    Endereco = "Quadra SMPW QD. 6 CJ. 1 LT 1-B, Núcleo Bandeirante",
-                    Contato = "61 99572-9976",
-                    Cnpj = "51.904.295/0001-61",
-                    TotalVagasCoberta = 20,
-                    TotalVagasDescoberta = 30,
-                    TelefoneWhatsApp = "5561995729976",
-                    MensagemWhatsApp = "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nEntrada: {entrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}",
-                    HorasAntecedenciaConfirmacao = 24
+                adminExists = await _context.Admins.AnyAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao verificar admins existentes");
+                return StatusCode(500, new 
+                { 
+                    message = "Erro ao acessar tabela Admins",
+                    error = ex.Message,
+                    innerException = ex.InnerException?.Message
                 });
             }
 
-            if (!await _context.Precos.AnyAsync())
+            if (adminExists)
             {
-                _context.Precos.AddRange(
-                    new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true },
-                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTime.UtcNow, Ativo = true }
-                );
+                return BadRequest(new { message = "Admin já existe. Seed não executado." });
+            }
+
+            // Criar Admin inicial (usa valores do DTO ou padrão)
+            var admin = new Admin
+            {
+                Usuario = dto?.Usuario ?? "admin",
+                SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto?.Senha ?? "admin123"),
+                Email = dto?.Email ?? "admin@exemplo.com",
+                Ativo = true,
+                DataCriacao = DateTime.UtcNow
+            };
+            
+            _logger.LogInformation("Criando admin: {Usuario}", admin.Usuario);
+            _context.Admins.Add(admin);
+
+            // Verificar se já existe preço
+            var precoExists = false;
+            try
+            {
+                precoExists = await _context.Precos.AnyAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Erro ao verificar preços, continuando sem criar preço");
+            }
+
+            if (!precoExists)
+            {
+                var preco = new Preco
+                {
+                    ValorHora = 10.00m,
+                    ValorMinuto = 0.17m, // R$ 10.00 / 60 minutos
+                    DataInicio = DateTime.UtcNow,
+                    Ativo = true
+                };
+                _context.Precos.Add(preco);
+                _logger.LogInformation("Preço padrão criado");
             }
 
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Seed executado com sucesso");
 
-            return Ok(new { message = "Seed executado com sucesso" });
+            return Ok(new
+            {
+                message = "Seed executado com sucesso",
+                admin = new { usuario = admin.Usuario, email = admin.Email },
+                created = DateTime.UtcNow
+            });
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx)
+        {
+            _logger.LogError(dbEx, "Erro de banco de dados ao executar seed");
+            return StatusCode(500, new 
+            { 
+                message = "Erro de banco de dados",
+                error = dbEx.Message,
+                innerException = dbEx.InnerException?.Message,
+                details = "Verifique se as migrations foram aplicadas e se a connection string está correta"
+            });
+        }
+        catch (Npgsql.NpgsqlException npgsqlEx)
+        {
+            _logger.LogError(npgsqlEx, "Erro de conexão PostgreSQL");
+            return StatusCode(500, new 
+            { 
+                message = "Erro de conexão com PostgreSQL/Supabase",
+                error = npgsqlEx.Message,
+                details = "Verifique a connection string e se o Supabase está acessível"
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao executar seed");
-            return StatusCode(500, new { message = "Erro ao executar seed", error = ex.Message });
+            return StatusCode(500, new 
+            { 
+                message = "Erro ao executar seed",
+                error = ex.Message,
+                innerException = ex.InnerException?.Message,
+                stackTrace = ex.StackTrace
+            });
         }
     }
 }
 
 public class SeedDto
 {
-    public string Usuario { get; set; } = string.Empty;
-    public string Senha { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+    public string? Usuario { get; set; }
+    public string? Senha { get; set; }
+    public string? Email { get; set; }
 }
+
