@@ -19,5 +19,5 @@ public class ConfiguracaoEstacionamento
     public string? MensagemWhatsApp { get; set; }
 
     public int HorasAntecedenciaConfirmacao { get; set; } = 24;
-    public DateTime DataAtualizacao { get; set; } = DateTime.UtcNow;
+    public DateTime DataAtualizacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
 }

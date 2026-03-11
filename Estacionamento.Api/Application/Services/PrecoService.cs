@@ -1,4 +1,5 @@
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
@@ -51,7 +52,7 @@ public class PrecoService : IPrecoService
             TipoVaga = tipoVaga,
             ValorDiaria = valorDiaria,
             DescontoPixDinheiro = descontoPixDinheiro,
-            DataInicio = dataInicio ?? DateTime.UtcNow,
+            DataInicio = dataInicio ?? DateTimeHelper.AgoraBrasilia(),
             Ativo = true
         };
 

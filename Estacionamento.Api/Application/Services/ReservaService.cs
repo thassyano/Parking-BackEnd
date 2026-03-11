@@ -1,5 +1,6 @@
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
@@ -50,10 +51,11 @@ public class ReservaService : IReservaService
             NomeCliente = dto.NomeCliente,
             TelefoneCliente = dto.TelefoneCliente,
             CpfCliente = dto.CpfCliente,
+            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
-            DataEntrada = dto.DataEntrada.Date,
+            DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
-            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
+            DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
             ValorFinal = valorTotal,
@@ -83,15 +85,15 @@ public class ReservaService : IReservaService
             CpfCliente = dto.CpfCliente,
             PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
-            DataEntrada = dto.DataEntrada.Date,
+            DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
-            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
+            DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
             ValorFinal = valorTotal,
             Origem = OrigemReserva.Presencial,
             Status = StatusReserva.CheckinRealizado,
-            DataCheckin = DateTime.UtcNow,
+            DataCheckin = DateTimeHelper.AgoraBrasilia(),
             Observacoes = dto.Observacoes
         };
 
@@ -150,7 +152,7 @@ public class ReservaService : IReservaService
             throw new InvalidOperationException("Reserva não pode fazer check-in no status atual");
 
         reserva.Status = StatusReserva.CheckinRealizado;
-        reserva.DataCheckin = DateTime.UtcNow;
+        reserva.DataCheckin = DateTimeHelper.AgoraBrasilia();
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -179,9 +181,9 @@ public class ReservaService : IReservaService
         reserva.DescontoAplicado = desconto;
         reserva.ValorFinal = reserva.ValorTotal - desconto;
         reserva.Pago = true;
-        reserva.DataPagamento = DateTime.UtcNow;
+        reserva.DataPagamento = DateTimeHelper.AgoraBrasilia();
         reserva.Status = StatusReserva.CheckoutRealizado;
-        reserva.DataCheckout = DateTime.UtcNow;
+        reserva.DataCheckout = DateTimeHelper.AgoraBrasilia();
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -240,7 +242,7 @@ public class ReservaService : IReservaService
             Numero = reserva.Id,
             PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
             DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
-            DataHoraSaida = reserva.DataCheckout ?? DateTime.UtcNow,
+            DataHoraSaida = reserva.DataCheckout ?? DateTimeHelper.AgoraBrasilia(),
             TipoVaga = reserva.TipoVaga.ToString(),
             QtdDias = reserva.QtdDias,
             ValorDiaria = reserva.ValorDiaria,

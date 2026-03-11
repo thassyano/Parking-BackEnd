@@ -58,5 +58,5 @@ public class Reserva
     public DateTime? DataCheckout { get; set; }
 
     public string? Observacoes { get; set; }
-    public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+    public DateTime DataCriacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
 }
