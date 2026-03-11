@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Estacionamento.Api.Application.DTOs;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
@@ -96,7 +97,7 @@ public class AuthController : ControllerBase
             {
                 Token = token,
                 Usuario = admin.Usuario,
-                ExpiraEm = DateTime.UtcNow.AddHours(8)
+                ExpiraEm = DateTimeHelper.AgoraBrasilia().AddHours(8)
             };
 
             return Ok(response);

@@ -37,7 +37,7 @@ public class CaixaController : ControllerBase
             return BadRequest(ModelState);
 
         if (filtro.DataFim < filtro.DataInicio)
-            return BadRequest(new { message = "Data fim deve ser maior ou igual à data início" });
+            return BadRequest(new { message = "Data fim deve ser maior ou igual à data início" }); 
 
         var arquivo = await _caixaService.ExportarExcelAsync(filtro);
 

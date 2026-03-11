@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 
 namespace Estacionamento.Api.Controllers;
@@ -45,7 +46,7 @@ public class AdminController : ControllerBase
                 SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
                 Email = dto.Email,
                 Ativo = true,
-                DataCriacao = DateTime.UtcNow
+                DataCriacao = DateTimeHelper.AgoraBrasilia()
             };
 
             _context.Admins.Add(admin);
