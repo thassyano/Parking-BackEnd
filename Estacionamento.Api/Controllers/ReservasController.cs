@@ -23,7 +23,11 @@ public class ReservasController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Listar([FromQuery] FiltroReservaDto? filtro)
     {
-        if (filtro != null && (filtro.DataInicio.HasValue || filtro.DataFim.HasValue || !string.IsNullOrEmpty(filtro.Status)))
+        if (filtro != null && (
+            filtro.DataInicio.HasValue ||
+            filtro.DataFim.HasValue ||
+            !string.IsNullOrWhiteSpace(filtro.Status) ||
+            !string.IsNullOrWhiteSpace(filtro.TipoVaga)))
         {
             var filtradas = await _reservaService.FiltrarAsync(filtro);
             return Ok(filtradas);
