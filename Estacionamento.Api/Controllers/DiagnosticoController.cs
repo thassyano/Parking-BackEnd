@@ -27,6 +27,7 @@ public class DiagnosticoController : ControllerBase
                 return Ok(new { conectado = false, erro = "Não foi possível conectar ao banco de dados" });
 
             var admins = await _context.Admins.CountAsync();
+
             var reservas = await _context.Reservas.CountAsync();
             var precos = await _context.Precos.CountAsync();
             var configuracoes = await _context.Configuracoes.CountAsync();
