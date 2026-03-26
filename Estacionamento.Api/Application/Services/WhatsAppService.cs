@@ -33,17 +33,14 @@ public class WhatsAppService : IWhatsAppService
             throw new InvalidOperationException("Telefone WhatsApp não configurado");
 
         var template = config.MensagemWhatsApp
-            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\nValor total: R$ {valorTotal}";
-
-        var horarioEntrada = reserva.DataCheckin?.ToString("HH:mm")
-            ?? reserva.DataEntrada.ToString("HH:mm");
+            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}";
 
         var mensagem = template
             .Replace("{id}", reserva.Id.ToString())
             .Replace("{nome}", reserva.NomeCliente)
-            .Replace("{placa}", reserva.PlacaVeiculo ?? "Não informada")
+            .Replace("{placa}", reserva.PlacaVeiculo)
             .Replace("{entrada}", reserva.DataEntrada.ToString("dd/MM/yyyy"))
-            .Replace("{horarioEntrada}", horarioEntrada)
+            .Replace("{horarioEntrada}", reserva.DataEntrada.ToShortTimeString())
             .Replace("{saida}", reserva.DataSaidaPrevista.ToString("dd/MM/yyyy"))
             .Replace("{tipo}", reserva.TipoVaga.ToString())
             .Replace("{dias}", reserva.QtdDias.ToString())

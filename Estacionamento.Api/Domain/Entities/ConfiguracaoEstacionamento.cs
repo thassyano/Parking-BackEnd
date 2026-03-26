@@ -1,5 +1,3 @@
-using Estacionamento.Api.Helpers;
-
 namespace Estacionamento.Api.Domain.Entities;
 
 public class ConfiguracaoEstacionamento
@@ -21,5 +19,5 @@ public class ConfiguracaoEstacionamento
     public string? MensagemWhatsApp { get; set; }
 
     public int HorasAntecedenciaConfirmacao { get; set; } = 24;
-    public DateTime DataAtualizacao { get; set; } = DateTimeHelper.AgoraBrasilia();
+    public DateTime DataAtualizacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
 }

@@ -1,5 +1,3 @@
-using Estacionamento.Api.Helpers;
-
 namespace Estacionamento.Api.Domain.Entities;
 
 public class Admin
@@ -9,6 +7,6 @@ public class Admin
     public string SenhaHash { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Nome { get; set; } = string.Empty;
-    public DateTime DataCriacao { get; set; } = DateTimeHelper.AgoraBrasilia();
+    public DateTime DataCriacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
     public bool Ativo { get; set; } = true;
 }

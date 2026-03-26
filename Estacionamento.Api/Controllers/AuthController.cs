@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -8,6 +7,7 @@ using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -59,8 +59,27 @@ public class AuthController : ControllerBase
             var admin = await _context.Admins
                 .FirstOrDefaultAsync(a => a.Usuario == loginDto.Usuario && a.Ativo);
 
-        if (admin == null || !BCrypt.Net.BCrypt.Verify(loginDto.Senha, admin.SenhaHash))
-            return Unauthorized(new { message = "Usuário ou senha inválidos" });
+            if (admin == null)
+            {
+                return Unauthorized(new { message = "Usuário não encontrado ou inativo" });
+            }
+
+            // Verificar senha
+            bool senhaValida;
+            try
+            {
+                senhaValida = BCrypt.Net.BCrypt.Verify(loginDto.Senha, admin.SenhaHash);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao verificar senha");
+                return StatusCode(500, new { message = "Erro ao verificar senha", error = ex.Message });
+            }
+
+            if (!senhaValida)
+            {
+                return Unauthorized(new { message = "Senha inválida" });
+            }
 
             // Gerar token
             string token;
@@ -74,13 +93,25 @@ public class AuthController : ControllerBase
                 return StatusCode(500, new { message = "Erro ao gerar token", error = ex.Message });
             }
 
-        return Ok(new LoginResponseDto
+            var response = new LoginResponseDto
+            {
+                Token = token,
+                Usuario = admin.Usuario,
+                ExpiraEm = DateTimeHelper.AgoraBrasilia().AddHours(8)
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
         {
-            Token = token,
-            Usuario = admin.Usuario,
-            Nome = admin.Nome,
-            ExpiraEm = DateTimeHelper.AgoraBrasilia().AddHours(8)
-        });
+            _logger.LogError(ex, "Erro no login");
+            return StatusCode(500, new 
+            { 
+                message = "Erro interno no servidor",
+                error = ex.Message,
+                innerException = ex.InnerException?.Message
+            });
+        }
     }
 
     private string GenerateJwtToken(Domain.Entities.Admin admin)
@@ -107,3 +138,4 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
+

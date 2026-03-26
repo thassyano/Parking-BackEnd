@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
@@ -25,39 +24,13 @@ public class SeedController : ControllerBase
     {
         try
         {
-            // Testar conexão com o banco primeiro
-            _logger.LogInformation("Testando conexão com banco de dados...");
             var canConnect = await _context.Database.CanConnectAsync();
-            
             if (!canConnect)
                 return StatusCode(500, new { message = "Não foi possível conectar ao banco de dados" });
-            
+
             if (await _context.Admins.AnyAsync())
                 return BadRequest(new { message = "Admin já existe" });
 
-            // Verificar se já existe admin
-            var adminExists = false;
-            try
-            {
-                adminExists = await _context.Admins.AnyAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao verificar admins existentes");
-                return StatusCode(500, new 
-                { 
-                    message = "Erro ao acessar tabela Admins",
-                    error = ex.Message,
-                    innerException = ex.InnerException?.Message
-                });
-            }
-
-            if (adminExists)
-            {
-                return BadRequest(new { message = "Admin já existe. Seed não executado." });
-            }
-
-            // Criar Admin inicial (usa valores do DTO ou padrão)
             var admin = new Admin
             {
                 Usuario = dto.Usuario,
@@ -65,14 +38,12 @@ public class SeedController : ControllerBase
                 Email = dto.Email,
                 Nome = dto.Usuario
             };
-            
-            _logger.LogInformation("Criando admin: {Usuario}", admin.Usuario);
             _context.Admins.Add(admin);
 
             if (!await _context.Configuracoes.AnyAsync())
             {
                 _context.Configuracoes.Add(new ConfiguracaoEstacionamento
-            {
+                {
                     NomeEstacionamento = "Estacionamento DF Park",
                     Endereco = "Quadra SMPW QD. 6 CJ. 1 LT 1-B, Núcleo Bandeirante",
                     Contato = "61 99572-9976",
@@ -86,7 +57,7 @@ public class SeedController : ControllerBase
             }
 
             if (!await _context.Precos.AnyAsync())
-                {
+            {
                 _context.Precos.AddRange(
                     new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true },
                     new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true }
@@ -94,7 +65,6 @@ public class SeedController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Seed executado com sucesso");
 
             return Ok(new { message = "Seed executado com sucesso" });
         }
@@ -112,4 +82,3 @@ public class SeedDto
     public string Senha { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
 }
-

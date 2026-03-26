@@ -6,12 +6,18 @@ using System.Text;
 using Estacionamento.Api.Infrastructure.Data;
 using Estacionamento.Api.Infrastructure.Repositories;
 using Estacionamento.Api.Application.Services;
+using Estacionamento.Api.Helpers;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new DateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableDateTimeJsonConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -50,8 +56,6 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Se não encontrar, tenta ler da variável de ambiente diretamente
 if (string.IsNullOrEmpty(connectionString))
 {
     connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
