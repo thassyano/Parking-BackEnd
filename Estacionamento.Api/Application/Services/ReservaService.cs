@@ -8,6 +8,7 @@ namespace Estacionamento.Api.Application.Services;
 public interface IReservaService
 {
     Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto);
+    Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaOnlineLoteDto dto);
     Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto);
     Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync();
     Task<ReservaResponseDto?> ObterPorIdAsync(int id);
@@ -51,7 +52,7 @@ public class ReservaService : IReservaService
             NomeCliente = dto.NomeCliente,
             TelefoneCliente = dto.TelefoneCliente,
             CpfCliente = dto.CpfCliente,
-            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
+            PlacaVeiculo = NormalizarPlaca(dto.PlacaVeiculo),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
@@ -66,6 +67,56 @@ public class ReservaService : IReservaService
 
         var criada = await _reservaRepository.CriarAsync(reserva);
         return MapToResponse(criada);
+    }
+
+    public async Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaOnlineLoteDto dto)
+    {
+        var placasNormalizadas = dto.PlacasVeiculos
+            .Select(NormalizarPlaca)
+            .Where(placa => !string.IsNullOrWhiteSpace(placa))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (placasNormalizadas.Count == 0)
+            throw new InvalidOperationException("Informe ao menos uma placa válida");
+
+        var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
+        var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
+            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
+
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias, placasNormalizadas.Count);
+
+        var valorTotalPorReserva = preco.ValorDiaria * dto.QtdDias;
+        var descontoPixDinheiroPorReserva = preco.DescontoPixDinheiro * dto.QtdDias;
+
+        var reservas = placasNormalizadas.Select(placa => new Reserva
+        {
+            NomeCliente = dto.NomeCliente,
+            TelefoneCliente = dto.TelefoneCliente,
+            CpfCliente = dto.CpfCliente,
+            PlacaVeiculo = placa,
+            TipoVaga = tipoVaga,
+            DataEntrada = dto.DataEntrada,
+            QtdDias = dto.QtdDias,
+            DataSaidaPrevista = dto.DataSaidaPrevista,
+            ValorDiaria = preco.ValorDiaria,
+            ValorTotal = valorTotalPorReserva,
+            ValorFinal = valorTotalPorReserva,
+            Origem = OrigemReserva.Online,
+            Status = StatusReserva.Pendente,
+            Observacoes = dto.Observacoes
+        });
+
+        var criadas = await _reservaRepository.CriarEmLoteAsync(reservas);
+
+        return new ReservaLoteResponseDto
+        {
+            Reservas = criadas.Select(MapToResponse).ToList(),
+            QuantidadeVeiculos = criadas.Count,
+            ValorTotalCartao = criadas.Sum(r => r.ValorTotal),
+            ValorTotalPixDinheiro = criadas.Sum(r => r.ValorTotal - descontoPixDinheiroPorReserva),
+            EconomiaTotal = criadas.Count * descontoPixDinheiroPorReserva
+        };
     }
 
     public async Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto)
@@ -83,7 +134,7 @@ public class ReservaService : IReservaService
             NomeCliente = dto.NomeCliente,
             TelefoneCliente = dto.TelefoneCliente,
             CpfCliente = dto.CpfCliente,
-            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
+            PlacaVeiculo = NormalizarPlaca(dto.PlacaVeiculo),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
@@ -134,7 +185,7 @@ public class ReservaService : IReservaService
         var reserva = await _reservaRepository.ObterPorIdAsync(id);
         if (reserva == null) return null;
 
-        reserva.PlacaVeiculo = dto.PlacaVeiculo.ToUpper();
+        reserva.PlacaVeiculo = NormalizarPlaca(dto.PlacaVeiculo);
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -253,7 +304,7 @@ public class ReservaService : IReservaService
         };
     }
 
-    private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias)
+    private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias, int quantidadeVeiculos = 1)
     {
         var config = await _configuracaoRepository.ObterAsync()
             ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada. Execute o seed primeiro.");
@@ -267,10 +318,13 @@ public class ReservaService : IReservaService
             var data = dataEntrada.Date.AddDays(i);
             var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, data);
 
-            if (ocupadas >= totalVagas)
-                throw new InvalidOperationException($"Não há vagas {tipoVaga} disponíveis para {data:dd/MM/yyyy}");
+            if (ocupadas + quantidadeVeiculos > totalVagas)
+                throw new InvalidOperationException($"Não há vagas {tipoVaga} suficientes para {quantidadeVeiculos} veículo(s) em {data:dd/MM/yyyy}");
         }
     }
+
+    private static string NormalizarPlaca(string? placa) =>
+        (placa ?? string.Empty).Trim().ToUpperInvariant();
 
     private static ReservaResponseDto MapToResponse(Reserva r) => new()
     {
