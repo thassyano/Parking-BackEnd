@@ -12,6 +12,7 @@ public interface IReservaRepository
     Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga);
     Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data);
     Task<Reserva> CriarAsync(Reserva reserva);
+    Task<List<Reserva>> CriarEmLoteAsync(IEnumerable<Reserva> reservas);
     Task<Reserva> AtualizarAsync(Reserva reserva);
 }
 
@@ -93,6 +94,14 @@ public class ReservaRepository : IReservaRepository
         _context.Reservas.Add(reserva);
         await _context.SaveChangesAsync();
         return reserva;
+    }
+
+    public async Task<List<Reserva>> CriarEmLoteAsync(IEnumerable<Reserva> reservas)
+    {
+        var reservasList = reservas.ToList();
+        await _context.Reservas.AddRangeAsync(reservasList);
+        await _context.SaveChangesAsync();
+        return reservasList;
     }
 
     public async Task<Reserva> AtualizarAsync(Reserva reserva)

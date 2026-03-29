@@ -67,6 +67,25 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>FLUXO ONLINE - Cliente reserva vários carros em um único envio</summary>
+    [HttpPost("online/lote")]
+    public async Task<IActionResult> CriarOnlineLote([FromBody] CriarReservaOnlineLoteDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var resultado = await _reservaService.CriarOnlineLoteAsync(dto);
+            resultado.WhatsApp = await _whatsAppService.GerarLinkLoteAsync(resultado.Reservas.Select(r => r.Id));
+            return CreatedAtAction(nameof(ObterPorId), new { id = resultado.Reservas.First().Id }, resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>FLUXO PRESENCIAL - Admin cadastra cliente que chegou (com placa e cor)</summary>
     [HttpPost("presencial")]
     [Authorize]
