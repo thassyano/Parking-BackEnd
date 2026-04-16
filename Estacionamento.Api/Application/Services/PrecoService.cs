@@ -9,7 +9,7 @@ public interface IPrecoService
     Task<IEnumerable<Preco>> ObterTodosAsync();
     Task<IEnumerable<Preco>> ObterAtivosAsync();
     Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga);
-    Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime? dataInicio = null);
+    Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime dataInicio, DateTime? dataFim = null);
 }
 
 public class PrecoService : IPrecoService
@@ -36,7 +36,7 @@ public class PrecoService : IPrecoService
         return await _precoRepository.ObterAtivoAsync(tipoVaga);
     }
 
-    public async Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime? dataInicio = null)
+    public async Task<Preco> CriarAsync(TipoVaga tipoVaga, decimal valorDiaria, decimal descontoPixDinheiro, DateTime dataInicio, DateTime? dataFim = null)
     {
         if (valorDiaria <= 0)
             throw new InvalidOperationException("O valor da diária deve ser maior que zero");
@@ -47,12 +47,16 @@ public class PrecoService : IPrecoService
         if (descontoPixDinheiro >= valorDiaria)
             throw new InvalidOperationException("O desconto não pode ser maior ou igual ao valor da diária");
 
+        if (dataFim.HasValue && dataFim.Value.Date <= dataInicio.Date)
+            throw new InvalidOperationException("A data fim deve ser posterior à data de início");
+
         var preco = new Preco
         {
             TipoVaga = tipoVaga,
             ValorDiaria = valorDiaria,
             DescontoPixDinheiro = descontoPixDinheiro,
-            DataInicio = dataInicio ?? DateTimeHelper.AgoraBrasilia(),
+            DataInicio = dataInicio,
+            DataFim = dataFim,
             Ativo = true
         };
 

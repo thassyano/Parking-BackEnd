@@ -14,7 +14,10 @@ public class CriarPrecoDto
     [Range(0, double.MaxValue)]
     public decimal DescontoPixDinheiro { get; set; } // R$ de desconto por diária
 
-    public DateTime? DataInicio { get; set; }
+    [Required(ErrorMessage = "A data de início é obrigatória")]
+    public DateTime DataInicio { get; set; }
+
+    public DateTime? DataFim { get; set; }
 }
 
 public class PrecoResponseDto
