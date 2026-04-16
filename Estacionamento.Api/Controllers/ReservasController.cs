@@ -67,6 +67,24 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>FLUXO ONLINE EM LOTE - Cliente reserva múltiplos veículos de uma vez</summary>
+    [HttpPost("online/lote")]
+    public async Task<IActionResult> CriarOnlineLote([FromBody] CriarReservaLoteOnlineDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var resultado = await _reservaService.CriarOnlineLoteAsync(dto);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>FLUXO PRESENCIAL - Admin cadastra cliente que chegou (com placa e cor)</summary>
     [HttpPost("presencial")]
     [Authorize]

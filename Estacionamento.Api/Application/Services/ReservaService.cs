@@ -8,6 +8,7 @@ namespace Estacionamento.Api.Application.Services;
 public interface IReservaService
 {
     Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto);
+    Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto);
     Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto);
     Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync();
     Task<ReservaResponseDto?> ObterPorIdAsync(int id);
@@ -66,6 +67,37 @@ public class ReservaService : IReservaService
 
         var criada = await _reservaRepository.CriarAsync(reserva);
         return MapToResponse(criada);
+    }
+
+    public async Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto)
+    {
+        var criadas = new List<ReservaResponseDto>();
+
+        foreach (var carro in dto.Carros)
+        {
+            var reservaDto = new CriarReservaOnlineDto
+            {
+                NomeCliente = dto.NomeCliente,
+                TelefoneCliente = dto.TelefoneCliente,
+                CpfCliente = dto.CpfCliente,
+                PlacaVeiculo = carro.PlacaVeiculo ?? string.Empty,
+                TipoVaga = carro.TipoVaga,
+                DataEntrada = carro.DataEntrada,
+                DataSaidaPrevista = carro.DataSaidaPrevista,
+                QtdDias = carro.QtdDias,
+                Observacoes = carro.Observacoes
+            };
+
+            var reserva = await CriarOnlineAsync(reservaDto);
+            criadas.Add(reserva);
+        }
+
+        return new ReservaLoteResponseDto
+        {
+            Reservas = criadas,
+            TotalReservas = criadas.Count,
+            ValorTotalGeral = criadas.Sum(r => r.ValorTotal)
+        };
     }
 
     public async Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto)
