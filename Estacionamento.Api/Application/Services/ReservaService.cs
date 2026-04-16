@@ -71,6 +71,14 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto)
     {
+        // Valida placas antes de persistir qualquer registro
+        for (int i = 0; i < dto.Carros.Count; i++)
+        {
+            var placa = dto.Carros[i].PlacaVeiculo;
+            if (!string.IsNullOrEmpty(placa) && placa.Length > 10)
+                throw new InvalidOperationException($"A placa do veículo {i + 1} não pode ter mais de 10 caracteres");
+        }
+
         var criadas = new List<ReservaResponseDto>();
 
         foreach (var carro in dto.Carros)
