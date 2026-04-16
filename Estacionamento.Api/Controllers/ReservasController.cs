@@ -217,4 +217,22 @@ public class ReservasController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    /// <summary>Gerar link WhatsApp consolidado para múltiplas reservas</summary>
+    [HttpPost("whatsapp/lote")]
+    public async Task<IActionResult> GerarLinkWhatsAppLote([FromBody] List<int> reservaIds)
+    {
+        if (reservaIds == null || reservaIds.Count == 0)
+            return BadRequest(new { message = "Informe pelo menos um ID de reserva" });
+
+        try
+        {
+            var resultado = await _whatsAppService.GerarLinkLoteAsync(reservaIds);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
