@@ -67,6 +67,24 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>FLUXO ONLINE EM LOTE - Cliente reserva múltiplos veículos de uma vez</summary>
+    [HttpPost("online/lote")]
+    public async Task<IActionResult> CriarOnlineLote([FromBody] CriarReservaLoteOnlineDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var resultado = await _reservaService.CriarOnlineLoteAsync(dto);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>FLUXO PRESENCIAL - Admin cadastra cliente que chegou (com placa e cor)</summary>
     [HttpPost("presencial")]
     [Authorize]
@@ -79,6 +97,25 @@ public class ReservasController : ControllerBase
         {
             var reserva = await _reservaService.CriarPresencialAsync(dto);
             return CreatedAtAction(nameof(ObterPorId), new { id = reserva.Id }, reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>FLUXO PRESENCIAL EM LOTE - Admin cadastra múltiplos veículos de um mesmo cliente</summary>
+    [HttpPost("presencial/lote")]
+    [Authorize]
+    public async Task<IActionResult> CriarPresencialLote([FromBody] CriarReservaLotePresencialDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var resultado = await _reservaService.CriarPresencialLoteAsync(dto);
+            return Ok(resultado);
         }
         catch (InvalidOperationException ex)
         {
@@ -192,6 +229,24 @@ public class ReservasController : ControllerBase
         try
         {
             var resultado = await _whatsAppService.GerarLinkAsync(id);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Gerar link WhatsApp consolidado para múltiplas reservas</summary>
+    [HttpPost("whatsapp/lote")]
+    public async Task<IActionResult> GerarLinkWhatsAppLote([FromBody] List<int> reservaIds)
+    {
+        if (reservaIds == null || reservaIds.Count == 0)
+            return BadRequest(new { message = "Informe pelo menos um ID de reserva" });
+
+        try
+        {
+            var resultado = await _whatsAppService.GerarLinkLoteAsync(reservaIds);
             return Ok(resultado);
         }
         catch (InvalidOperationException ex)
