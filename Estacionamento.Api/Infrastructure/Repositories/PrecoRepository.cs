@@ -61,11 +61,14 @@ public class PrecoRepository : IPrecoRepository
 
     public async Task<Preco> CriarAsync(Preco preco)
     {
-        var anteriores = await _context.Precos
-            .Where(p => p.Ativo && p.TipoVaga == preco.TipoVaga)
+        // Desativa apenas preços ativos que se sobreponham ao novo range
+        var sobrepostos = await _context.Precos
+            .Where(p => p.Ativo && p.TipoVaga == preco.TipoVaga &&
+                        p.DataInicio < (preco.DataFim ?? DateTime.MaxValue) &&
+                        (p.DataFim == null || p.DataFim > preco.DataInicio))
             .ToListAsync();
 
-        foreach (var anterior in anteriores)
+        foreach (var anterior in sobrepostos)
         {
             anterior.Ativo = false;
             anterior.DataFim ??= preco.DataInicio;
