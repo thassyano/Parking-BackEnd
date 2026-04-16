@@ -8,7 +8,9 @@ namespace Estacionamento.Api.Application.Services;
 public interface IReservaService
 {
     Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto);
+    Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto);
     Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto);
+    Task<ReservaLoteResponseDto> CriarPresencialLoteAsync(CriarReservaLotePresencialDto dto);
     Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync();
     Task<ReservaResponseDto?> ObterPorIdAsync(int id);
     Task<IEnumerable<ReservaResponseDto>> FiltrarAsync(FiltroReservaDto filtro);
@@ -68,6 +70,45 @@ public class ReservaService : IReservaService
         return MapToResponse(criada);
     }
 
+    public async Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto)
+    {
+        // Valida placas antes de persistir qualquer registro
+        for (int i = 0; i < dto.Carros.Count; i++)
+        {
+            var placa = dto.Carros[i].PlacaVeiculo;
+            if (!string.IsNullOrEmpty(placa) && placa.Length > 10)
+                throw new InvalidOperationException($"A placa do veículo {i + 1} não pode ter mais de 10 caracteres");
+        }
+
+        var criadas = new List<ReservaResponseDto>();
+
+        foreach (var carro in dto.Carros)
+        {
+            var reservaDto = new CriarReservaOnlineDto
+            {
+                NomeCliente = dto.NomeCliente,
+                TelefoneCliente = dto.TelefoneCliente,
+                CpfCliente = dto.CpfCliente,
+                PlacaVeiculo = carro.PlacaVeiculo ?? string.Empty,
+                TipoVaga = carro.TipoVaga,
+                DataEntrada = carro.DataEntrada,
+                DataSaidaPrevista = carro.DataSaidaPrevista,
+                QtdDias = carro.QtdDias,
+                Observacoes = carro.Observacoes
+            };
+
+            var reserva = await CriarOnlineAsync(reservaDto);
+            criadas.Add(reserva);
+        }
+
+        return new ReservaLoteResponseDto
+        {
+            Reservas = criadas,
+            TotalReservas = criadas.Count,
+            ValorTotalGeral = criadas.Sum(r => r.ValorTotal)
+        };
+    }
+
     public async Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto)
     {
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
@@ -99,6 +140,44 @@ public class ReservaService : IReservaService
 
         var criada = await _reservaRepository.CriarAsync(reserva);
         return MapToResponse(criada);
+    }
+
+    public async Task<ReservaLoteResponseDto> CriarPresencialLoteAsync(CriarReservaLotePresencialDto dto)
+    {
+        for (int i = 0; i < dto.Carros.Count; i++)
+        {
+            var placa = dto.Carros[i].PlacaVeiculo;
+            if (!string.IsNullOrEmpty(placa) && placa.Length > 10)
+                throw new InvalidOperationException($"A placa do veículo {i + 1} não pode ter mais de 10 caracteres");
+        }
+
+        var criadas = new List<ReservaResponseDto>();
+
+        foreach (var carro in dto.Carros)
+        {
+            var reservaDto = new CriarReservaPresencialDto
+            {
+                NomeCliente = dto.NomeCliente,
+                TelefoneCliente = dto.TelefoneCliente,
+                CpfCliente = dto.CpfCliente,
+                PlacaVeiculo = carro.PlacaVeiculo,
+                TipoVaga = carro.TipoVaga,
+                DataEntrada = carro.DataEntrada,
+                DataSaidaPrevista = carro.DataSaidaPrevista,
+                QtdDias = carro.QtdDias,
+                Observacoes = carro.Observacoes
+            };
+
+            var reserva = await CriarPresencialAsync(reservaDto);
+            criadas.Add(reserva);
+        }
+
+        return new ReservaLoteResponseDto
+        {
+            Reservas = criadas,
+            TotalReservas = criadas.Count,
+            ValorTotalGeral = criadas.Sum(r => r.ValorTotal)
+        };
     }
 
     public async Task<IEnumerable<ReservaResponseDto>> ObterTodasAsync()
