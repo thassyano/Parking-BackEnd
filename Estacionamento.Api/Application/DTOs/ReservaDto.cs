@@ -155,3 +155,41 @@ public class ReservaLoteResponseDto
     public int TotalReservas { get; set; }
     public decimal ValorTotalGeral { get; set; }
 }
+
+// === FLUXO PRESENCIAL EM LOTE (múltiplos veículos) ===
+public class CarroPresencialLoteDto
+{
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+
+    [Required]
+    public string TipoVaga { get; set; } = "Coberta";
+
+    [Required]
+    public DateTime DataEntrada { get; set; }
+
+    [Required]
+    public DateTime DataSaidaPrevista { get; set; }
+
+    [Required]
+    [Range(1, 365)]
+    public int QtdDias { get; set; } = 1;
+
+    public string? Observacoes { get; set; }
+}
+
+public class CriarReservaLotePresencialDto
+{
+    [Required(ErrorMessage = "O nome é obrigatório")]
+    public string NomeCliente { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    public string TelefoneCliente { get; set; } = string.Empty;
+
+    public string? CpfCliente { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "Informe pelo menos um veículo")]
+    public List<CarroPresencialLoteDto> Carros { get; set; } = new();
+}

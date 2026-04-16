@@ -104,6 +104,25 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>FLUXO PRESENCIAL EM LOTE - Admin cadastra múltiplos veículos de um mesmo cliente</summary>
+    [HttpPost("presencial/lote")]
+    [Authorize]
+    public async Task<IActionResult> CriarPresencialLote([FromBody] CriarReservaLotePresencialDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var resultado = await _reservaService.CriarPresencialLoteAsync(dto);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>Associar placa ao cliente online quando ele chega no estacionamento</summary>
     [HttpPatch("{id}/placa")]
     [Authorize]
