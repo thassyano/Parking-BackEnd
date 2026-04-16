@@ -196,7 +196,7 @@ app.MapGet("/health", () => new
     environment = app.Environment.EnvironmentName
 });
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 Console.WriteLine($"Iniciando aplicacao na porta {port}");
 
-app.Run();
+app.Run($"http://0.0.0.0:{port}");
