@@ -25,9 +25,6 @@ public class AtualizarConfiguracaoDto
     [MaxLength(20)]
     public string? TelefoneWhatsApp { get; set; }
 
-    [MaxLength(1000)]
-    public string? MensagemWhatsApp { get; set; }
-
     [Range(1, 168)]
     public int? HorasAntecedenciaConfirmacao { get; set; }
 }
