@@ -56,10 +56,22 @@ public class ReservaRepository : IReservaRepository
     {
         var query = _context.Reservas.AsQueryable();
 
-        if (dataInicio.HasValue)
-            query = query.Where(r => r.DataEntrada >= ToUtc(dataInicio.Value));
-        if (dataFim.HasValue)
-            query = query.Where(r => r.DataEntrada <= ToUtc(dataFim.Value));
+        if (dataInicio.HasValue && dataFim.HasValue)
+        {
+            query = query.Where(r => r.DataEntrada >= ToUtc(dataInicio.Value)
+                                     && r.DataEntrada <= ToUtc(dataFim.Value.Date.AddDays(1).AddTicks(-1)));
+        }
+        else if (dataInicio.HasValue)
+        {
+            var inicio = ToUtc(dataInicio.Value.Date);
+            var fim    = ToUtc(dataInicio.Value.Date.AddDays(1).AddTicks(-1));
+            query = query.Where(r => r.DataEntrada >= inicio && r.DataEntrada <= fim);
+        }
+        else if (dataFim.HasValue)
+        {
+            query = query.Where(r => r.DataEntrada <= ToUtc(dataFim.Value.Date.AddDays(1).AddTicks(-1)));
+        }
+
         if (status.HasValue)
             query = query.Where(r => r.Status == status.Value);
         if (tipoVaga.HasValue)
@@ -68,6 +80,7 @@ public class ReservaRepository : IReservaRepository
         return await query
             .OrderByDescending(r => r.DataEntrada)
             .ToListAsync();
+
     }
 
     public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data)
