@@ -9,12 +9,13 @@ public class CriarReservaOnlineDto
     public string NomeCliente { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [MaxLength(10, ErrorMessage = "Placa do automóvel deve ter no máximo 10 caracteres")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -40,12 +41,13 @@ public class CriarReservaPresencialDto
     public string NomeCliente { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [MaxLength(10, ErrorMessage = "Placa do veículo deve ter no máximo 10 caracteres")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
