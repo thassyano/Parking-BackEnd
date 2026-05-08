@@ -56,20 +56,12 @@ public class ReservaRepository : IReservaRepository
     {
         var query = _context.Reservas.AsQueryable();
 
-        if (dataInicio.HasValue && dataFim.HasValue)
+        if (dataInicio.HasValue)
+            query = query.Where(r => r.DataEntrada >= ToUtc(dataInicio.Value));
+        if (dataFim.HasValue)
         {
-            query = query.Where(r => r.DataEntrada >= ToUtc(dataInicio.Value)
-                                     && r.DataEntrada <= ToUtc(dataFim.Value.Date.AddDays(1).AddTicks(-1)));
-        }
-        else if (dataInicio.HasValue)
-        {
-            var inicio = ToUtc(dataInicio.Value.Date);
-            var fim    = ToUtc(dataInicio.Value.Date.AddDays(1).AddTicks(-1));
-            query = query.Where(r => r.DataEntrada >= inicio && r.DataEntrada <= fim);
-        }
-        else if (dataFim.HasValue)
-        {
-            query = query.Where(r => r.DataEntrada <= ToUtc(dataFim.Value.Date.AddDays(1).AddTicks(-1)));
+            var proximoDia = dataFim.Value.Date.AddDays(1);
+            query = query.Where(r => r.DataEntrada < ToUtc(proximoDia));
         }
 
         if (status.HasValue)
