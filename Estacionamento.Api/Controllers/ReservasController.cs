@@ -27,7 +27,8 @@ public class ReservasController : ControllerBase
             filtro.DataInicio.HasValue ||
             filtro.DataFim.HasValue ||
             !string.IsNullOrWhiteSpace(filtro.Status) ||
-            !string.IsNullOrWhiteSpace(filtro.TipoVaga)))
+            !string.IsNullOrWhiteSpace(filtro.TipoVaga) ||
+            !string.IsNullOrWhiteSpace(filtro.PlacaVeiculo)))
         {
             var filtradas = await _reservaService.FiltrarAsync(filtro);
             return Ok(filtradas);

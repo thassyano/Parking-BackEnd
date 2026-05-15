@@ -203,7 +203,7 @@ public class ReservaService : IReservaService
             tipoVaga = Enum.Parse<TipoVaga>(filtro.TipoVaga, true);
 
         var reservas = await _reservaRepository.ObterFiltradoAsync(
-            filtro.DataInicio, filtro.DataFim, status, tipoVaga);
+            filtro.DataInicio, filtro.DataFim, status, tipoVaga, filtro.PlacaVeiculo);
 
         return reservas.Select(MapToResponse);
     }

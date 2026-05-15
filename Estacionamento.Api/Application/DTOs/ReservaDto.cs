@@ -113,6 +113,7 @@ public class FiltroReservaDto
     public DateTime? DataFim { get; set; }
     public string? Status { get; set; }
     public string? TipoVaga { get; set; }
+    public string? PlacaVeiculo { get; set; }
 }
 
 // === FLUXO ONLINE EM LOTE (múltiplos veículos) ===

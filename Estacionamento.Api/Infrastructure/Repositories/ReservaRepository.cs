@@ -9,7 +9,7 @@ public interface IReservaRepository
     Task<IEnumerable<Reserva>> ObterTodasAsync();
     Task<Reserva?> ObterPorIdAsync(int id);
     Task<IEnumerable<Reserva>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim);
-    Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga);
+    Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga, string? placaVeiculo);
     Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data);
     Task<Reserva> CriarAsync(Reserva reserva);
     Task<Reserva> AtualizarAsync(Reserva reserva);
@@ -52,7 +52,7 @@ public class ReservaRepository : IReservaRepository
 
     public async Task<IEnumerable<Reserva>> ObterFiltradoAsync(
         DateTime? dataInicio, DateTime? dataFim,
-        StatusReserva? status, TipoVaga? tipoVaga)
+        StatusReserva? status, TipoVaga? tipoVaga, string? placaVeiculo)
     {
         var query = _context.Reservas.AsQueryable();
 
@@ -76,6 +76,11 @@ public class ReservaRepository : IReservaRepository
             query = query.Where(r => r.Status == status.Value);
         if (tipoVaga.HasValue)
             query = query.Where(r => r.TipoVaga == tipoVaga.Value);
+        if (!string.IsNullOrWhiteSpace(placaVeiculo))
+        {
+            var placa = placaVeiculo.Trim().ToUpper();
+            query = query.Where(r => r.PlacaVeiculo != null && r.PlacaVeiculo == placa);
+        }
 
         return await query
             .OrderByDescending(r => r.DataEntrada)
