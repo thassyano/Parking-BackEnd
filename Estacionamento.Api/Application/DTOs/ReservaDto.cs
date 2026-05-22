@@ -2,20 +2,21 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Estacionamento.Api.Application.DTOs;
 
-// === FLUXO ONLINE ===
 public class CriarReservaOnlineDto
 {
-    [Required(ErrorMessage = "O nome é obrigatório")]
+    [Required(ErrorMessage = "O nome e obrigatorio")]
+    [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "O telefone é obrigatório")]
-    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
+    [Required(ErrorMessage = "O telefone e obrigatorio")]
+    [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
-    [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10, ErrorMessage = "Placa do automóvel deve ter no máximo 10 caracteres")]
+    [Required(ErrorMessage = "A placa e obrigatoria")]
+    [MaxLength(7, ErrorMessage = "Placa do veiculo deve ter no maximo 7 caracteres")]
+    [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "A placa do veiculo deve conter apenas caracteres alfanumericos")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -34,20 +35,21 @@ public class CriarReservaOnlineDto
     public string? Observacoes { get; set; }
 }
 
-// === FLUXO PRESENCIAL ===
 public class CriarReservaPresencialDto
 {
-    [Required(ErrorMessage = "O nome é obrigatório")]
+    [Required(ErrorMessage = "O nome e obrigatorio")]
+    [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "O telefone é obrigatório")]
-    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
+    [Required(ErrorMessage = "O telefone e obrigatorio")]
+    [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
-    [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10, ErrorMessage = "Placa do veículo deve ter no máximo 10 caracteres")]
+    [Required(ErrorMessage = "A placa e obrigatoria")]
+    [MaxLength(7, ErrorMessage = "Placa do veiculo deve ter no maximo 7 caracteres")]
+    [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "A placa do veiculo deve conter apenas caracteres alfanumericos")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -66,22 +68,20 @@ public class CriarReservaPresencialDto
     public string? Observacoes { get; set; }
 }
 
-// === Associar placa quando online chega ===
 public class AssociarPlacaDto
 {
-    [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [Required(ErrorMessage = "A placa e obrigatoria")]
+    [MaxLength(7, ErrorMessage = "Placa do veiculo deve ter no maximo 7 caracteres")]
+    [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "A placa do veiculo deve conter apenas caracteres alfanumericos")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 }
 
-// === Checkout ===
 public class CheckoutDto
 {
-    [Required(ErrorMessage = "A forma de pagamento é obrigatória")]
+    [Required(ErrorMessage = "A forma de pagamento e obrigatoria")]
     public string FormaPagamento { get; set; } = string.Empty;
 }
 
-// === Response ===
 public class ReservaResponseDto
 {
     public int Id { get; set; }
@@ -116,9 +116,10 @@ public class FiltroReservaDto
     public string? PlacaVeiculo { get; set; }
 }
 
-// === FLUXO ONLINE EM LOTE (múltiplos veículos) ===
 public class CarroLoteDto
 {
+    [MaxLength(7, ErrorMessage = "Placa do veiculo deve ter no maximo 7 caracteres")]
+    [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "A placa do veiculo deve conter apenas caracteres alfanumericos")]
     public string? PlacaVeiculo { get; set; }
 
     [Required]
@@ -139,16 +140,18 @@ public class CarroLoteDto
 
 public class CriarReservaLoteOnlineDto
 {
-    [Required(ErrorMessage = "O nome é obrigatório")]
+    [Required(ErrorMessage = "O nome e obrigatorio")]
+    [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [Required(ErrorMessage = "O telefone e obrigatorio")]
+    [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required]
-    [MinLength(1, ErrorMessage = "Informe pelo menos um veículo")]
+    [MinLength(1, ErrorMessage = "Informe pelo menos um veiculo")]
     public List<CarroLoteDto> Carros { get; set; } = new();
 }
 
@@ -159,11 +162,11 @@ public class ReservaLoteResponseDto
     public decimal ValorTotalGeral { get; set; }
 }
 
-// === FLUXO PRESENCIAL EM LOTE (múltiplos veículos) ===
 public class CarroPresencialLoteDto
 {
-    [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [Required(ErrorMessage = "A placa e obrigatoria")]
+    [MaxLength(7, ErrorMessage = "Placa do veiculo deve ter no maximo 7 caracteres")]
+    [RegularExpression(@"^[A-Za-z0-9]+$", ErrorMessage = "A placa do veiculo deve conter apenas caracteres alfanumericos")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -184,15 +187,17 @@ public class CarroPresencialLoteDto
 
 public class CriarReservaLotePresencialDto
 {
-    [Required(ErrorMessage = "O nome é obrigatório")]
+    [Required(ErrorMessage = "O nome e obrigatorio")]
+    [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [Required(ErrorMessage = "O telefone e obrigatorio")]
+    [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required]
-    [MinLength(1, ErrorMessage = "Informe pelo menos um veículo")]
+    [MinLength(1, ErrorMessage = "Informe pelo menos um veiculo")]
     public List<CarroPresencialLoteDto> Carros { get; set; } = new();
 }

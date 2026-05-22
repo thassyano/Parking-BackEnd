@@ -2,6 +2,7 @@ using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
+using System.Text.RegularExpressions;
 
 namespace Estacionamento.Api.Application.Services;
 
@@ -40,9 +41,12 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto)
     {
+        var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
+        var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
+        var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
-            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
+            ?? throw new InvalidOperationException($"Nenhum preco ativo para vaga {dto.TipoVaga}");
 
         await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
 
@@ -50,10 +54,10 @@ public class ReservaService : IReservaService
 
         var reserva = new Reserva
         {
-            NomeCliente = dto.NomeCliente,
-            TelefoneCliente = dto.TelefoneCliente,
-            CpfCliente = dto.CpfCliente,
-            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
+            NomeCliente = nomeCliente,
+            TelefoneCliente = telefoneCliente,
+            CpfCliente = NormalizarCampoOpcional(dto.CpfCliente),
+            PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
@@ -63,7 +67,7 @@ public class ReservaService : IReservaService
             ValorFinal = valorTotal,
             Origem = OrigemReserva.Online,
             Status = StatusReserva.Pendente,
-            Observacoes = dto.Observacoes
+            Observacoes = NormalizarCampoOpcional(dto.Observacoes)
         };
 
         var criada = await _reservaRepository.CriarAsync(reserva);
@@ -72,14 +76,6 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaLoteResponseDto> CriarOnlineLoteAsync(CriarReservaLoteOnlineDto dto)
     {
-        // Valida placas antes de persistir qualquer registro
-        for (int i = 0; i < dto.Carros.Count; i++)
-        {
-            var placa = dto.Carros[i].PlacaVeiculo;
-            if (!string.IsNullOrEmpty(placa) && placa.Length > 10)
-                throw new InvalidOperationException($"A placa do veículo {i + 1} não pode ter mais de 10 caracteres");
-        }
-
         var criadas = new List<ReservaResponseDto>();
 
         foreach (var carro in dto.Carros)
@@ -111,9 +107,12 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaResponseDto> CriarPresencialAsync(CriarReservaPresencialDto dto)
     {
+        var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
+        var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
+        var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
-            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
+            ?? throw new InvalidOperationException($"Nenhum preco ativo para vaga {dto.TipoVaga}");
 
         await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
 
@@ -121,10 +120,10 @@ public class ReservaService : IReservaService
 
         var reserva = new Reserva
         {
-            NomeCliente = dto.NomeCliente,
-            TelefoneCliente = dto.TelefoneCliente,
-            CpfCliente = dto.CpfCliente,
-            PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
+            NomeCliente = nomeCliente,
+            TelefoneCliente = telefoneCliente,
+            CpfCliente = NormalizarCampoOpcional(dto.CpfCliente),
+            PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
             QtdDias = dto.QtdDias,
@@ -135,7 +134,7 @@ public class ReservaService : IReservaService
             Origem = OrigemReserva.Presencial,
             Status = StatusReserva.CheckinRealizado,
             DataCheckin = DateTimeHelper.AgoraBrasilia(),
-            Observacoes = dto.Observacoes
+            Observacoes = NormalizarCampoOpcional(dto.Observacoes)
         };
 
         var criada = await _reservaRepository.CriarAsync(reserva);
@@ -144,13 +143,6 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaLoteResponseDto> CriarPresencialLoteAsync(CriarReservaLotePresencialDto dto)
     {
-        for (int i = 0; i < dto.Carros.Count; i++)
-        {
-            var placa = dto.Carros[i].PlacaVeiculo;
-            if (!string.IsNullOrEmpty(placa) && placa.Length > 10)
-                throw new InvalidOperationException($"A placa do veículo {i + 1} não pode ter mais de 10 caracteres");
-        }
-
         var criadas = new List<ReservaResponseDto>();
 
         foreach (var carro in dto.Carros)
@@ -213,7 +205,7 @@ public class ReservaService : IReservaService
         var reserva = await _reservaRepository.ObterPorIdAsync(id);
         if (reserva == null) return null;
 
-        reserva.PlacaVeiculo = dto.PlacaVeiculo.ToUpper();
+        reserva.PlacaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -225,10 +217,10 @@ public class ReservaService : IReservaService
         if (reserva == null) return null;
 
         if (string.IsNullOrEmpty(reserva.PlacaVeiculo))
-            throw new InvalidOperationException("Associe a placa do veículo antes de fazer check-in");
+            throw new InvalidOperationException("Associe a placa do veiculo antes de fazer check-in");
 
         if (reserva.Status != StatusReserva.Pendente && reserva.Status != StatusReserva.Confirmada)
-            throw new InvalidOperationException("Reserva não pode fazer check-in no status atual");
+            throw new InvalidOperationException("Reserva nao pode fazer check-in no status atual");
 
         reserva.Status = StatusReserva.CheckinRealizado;
         reserva.DataCheckin = DateTimeHelper.AgoraBrasilia();
@@ -243,7 +235,7 @@ public class ReservaService : IReservaService
         if (reserva == null) return null;
 
         if (reserva.Status != StatusReserva.CheckinRealizado)
-            throw new InvalidOperationException("Check-in não foi realizado");
+            throw new InvalidOperationException("Check-in nao foi realizado");
 
         var formaPagamento = Enum.Parse<FormaPagamento>(dto.FormaPagamento, true);
 
@@ -274,7 +266,7 @@ public class ReservaService : IReservaService
         if (reserva == null) return null;
 
         if (reserva.Status == StatusReserva.CheckoutRealizado)
-            throw new InvalidOperationException("Não é possível cancelar uma reserva já finalizada");
+            throw new InvalidOperationException("Nao e possivel cancelar uma reserva ja finalizada");
 
         reserva.Status = StatusReserva.Cancelada;
         await _reservaRepository.AtualizarAsync(reserva);
@@ -335,7 +327,7 @@ public class ReservaService : IReservaService
     private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias)
     {
         var config = await _configuracaoRepository.ObterAsync()
-            ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada. Execute o seed primeiro.");
+            ?? throw new InvalidOperationException("Configuracao do estacionamento nao encontrada. Execute o seed primeiro.");
 
         var totalVagas = tipoVaga == TipoVaga.Coberta
             ? config.TotalVagasCoberta
@@ -347,8 +339,46 @@ public class ReservaService : IReservaService
             var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, data);
 
             if (ocupadas >= totalVagas)
-                throw new InvalidOperationException($"Não há vagas {tipoVaga} disponíveis para {data:dd/MM/yyyy}");
+                throw new InvalidOperationException($"Nao ha vagas {tipoVaga} disponiveis para {data:dd/MM/yyyy}");
         }
+    }
+
+    private static string NormalizarNomeCliente(string nomeCliente)
+    {
+        var nomeNormalizado = Regex.Replace(nomeCliente.Trim(), @"\s+", " ");
+
+        if (!Regex.IsMatch(nomeNormalizado, @"^[\p{L}\s]+$"))
+            throw new InvalidOperationException("O nome do cliente deve conter apenas letras");
+
+        return nomeNormalizado;
+    }
+
+    private static string NormalizarTelefoneCliente(string telefoneCliente)
+    {
+        var digitos = new string(telefoneCliente.Where(char.IsDigit).ToArray());
+
+        if (digitos.Length != 11)
+            throw new InvalidOperationException("Telefone deve estar no formato (00) 000000000");
+
+        return $"({digitos[..2]}) {digitos[2..]}";
+    }
+
+    private static string NormalizarPlacaVeiculo(string placaVeiculo)
+    {
+        var placaNormalizada = placaVeiculo.Trim().ToUpperInvariant();
+
+        if (placaNormalizada.Length is < 1 or > 7)
+            throw new InvalidOperationException("A placa do veiculo deve ter no maximo 7 caracteres");
+
+        if (!Regex.IsMatch(placaNormalizada, @"^[A-Z0-9]+$"))
+            throw new InvalidOperationException("A placa do veiculo deve conter apenas caracteres alfanumericos");
+
+        return placaNormalizada;
+    }
+
+    private static string? NormalizarCampoOpcional(string? valor)
+    {
+        return string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
     }
 
     private static ReservaResponseDto MapToResponse(Reserva r) => new()
