@@ -44,6 +44,10 @@ public class ConfiguracaoController : ControllerBase
         if (dto.TotalVagasDescoberta.HasValue) config.TotalVagasDescoberta = dto.TotalVagasDescoberta.Value;
         if (dto.TelefoneWhatsApp != null) config.TelefoneWhatsApp = dto.TelefoneWhatsApp;
         if (dto.MensagemWhatsApp != null) config.MensagemWhatsApp = dto.MensagemWhatsApp;
+        if (dto.EvolutionApiUrl != null) config.EvolutionApiUrl = dto.EvolutionApiUrl;
+        if (dto.EvolutionApiKey != null) config.EvolutionApiKey = dto.EvolutionApiKey;
+        if (dto.EvolutionInstanceName != null) config.EvolutionInstanceName = dto.EvolutionInstanceName;
+        if (dto.UrlConfirmacaoFrontend != null) config.UrlConfirmacaoFrontend = dto.UrlConfirmacaoFrontend;
         if (dto.HorasAntecedenciaConfirmacao.HasValue) config.HorasAntecedenciaConfirmacao = dto.HorasAntecedenciaConfirmacao.Value;
 
         var atualizada = await _configuracaoRepository.CriarOuAtualizarAsync(config);
@@ -61,6 +65,12 @@ public class ConfiguracaoController : ControllerBase
         TotalVagasDescoberta = c.TotalVagasDescoberta,
         TelefoneWhatsApp = c.TelefoneWhatsApp,
         MensagemWhatsApp = c.MensagemWhatsApp,
+        EvolutionApiUrl = c.EvolutionApiUrl,
+        EvolutionInstanceName = c.EvolutionInstanceName,
+        EvolutionConfigurada = !string.IsNullOrEmpty(c.EvolutionApiUrl)
+            && !string.IsNullOrEmpty(c.EvolutionApiKey)
+            && !string.IsNullOrEmpty(c.EvolutionInstanceName),
+        UrlConfirmacaoFrontend = c.UrlConfirmacaoFrontend,
         HorasAntecedenciaConfirmacao = c.HorasAntecedenciaConfirmacao,
         DataAtualizacao = c.DataAtualizacao
     };

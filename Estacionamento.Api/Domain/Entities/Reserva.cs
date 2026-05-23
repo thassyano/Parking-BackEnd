@@ -59,4 +59,10 @@ public class Reserva
 
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
+
+    // Confirmação via WhatsApp
+    public Guid ConfirmacaoToken { get; set; } = Guid.NewGuid();
+    public bool ConfirmadaPeloCliente { get; set; } = false;
+    public bool MensagemConfirmacaoEnviada { get; set; } = false;
+    public DateTime? DataEnvioConfirmacao { get; set; }
 }

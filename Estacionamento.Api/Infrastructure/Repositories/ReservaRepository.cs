@@ -8,9 +8,12 @@ public interface IReservaRepository
 {
     Task<IEnumerable<Reserva>> ObterTodasAsync();
     Task<Reserva?> ObterPorIdAsync(int id);
+    Task<Reserva?> ObterPorTokenAsync(Guid token);
     Task<IEnumerable<Reserva>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim);
     Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga, string? placaVeiculo);
     Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data);
+    Task<IEnumerable<Reserva>> ObterParaEnvioConfirmacaoAsync(int horasAntecedencia);
+    Task<IEnumerable<Reserva>> ObterParaCancelamentoAutomaticoAsync();
     Task<Reserva> CriarAsync(Reserva reserva);
     Task<Reserva> AtualizarAsync(Reserva reserva);
 }
@@ -37,6 +40,40 @@ public class ReservaRepository : IReservaRepository
     public async Task<Reserva?> ObterPorIdAsync(int id)
     {
         return await _context.Reservas.FindAsync(id);
+    }
+
+    public async Task<Reserva?> ObterPorTokenAsync(Guid token)
+    {
+        return await _context.Reservas.FirstOrDefaultAsync(r => r.ConfirmacaoToken == token);
+    }
+
+    public async Task<IEnumerable<Reserva>> ObterParaEnvioConfirmacaoAsync(int horasAntecedencia)
+    {
+        var agora = Helpers.DateTimeHelper.AgoraBrasilia();
+        var limite = agora.AddHours(horasAntecedencia);
+        var statusAtivos = new[] { StatusReserva.Pendente, StatusReserva.Confirmada };
+
+        return await _context.Reservas
+            .Where(r => r.DataEntrada > agora
+                && r.DataEntrada <= limite
+                && !r.MensagemConfirmacaoEnviada
+                && statusAtivos.Contains(r.Status)
+                && r.Origem == OrigemReserva.Online)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Reserva>> ObterParaCancelamentoAutomaticoAsync()
+    {
+        var hoje = Helpers.DateTimeHelper.AgoraBrasilia().Date;
+        var statusAtivos = new[] { StatusReserva.Pendente, StatusReserva.Confirmada };
+
+        return await _context.Reservas
+            .Where(r => r.DataEntrada < hoje.AddDays(1)
+                && !r.ConfirmadaPeloCliente
+                && r.MensagemConfirmacaoEnviada
+                && statusAtivos.Contains(r.Status)
+                && r.Origem == OrigemReserva.Online)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Reserva>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim)

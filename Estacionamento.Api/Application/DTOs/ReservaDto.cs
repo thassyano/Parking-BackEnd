@@ -105,6 +105,9 @@ public class ReservaResponseDto
     public DateTime? DataCheckout { get; set; }
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; }
+    public bool ConfirmadaPeloCliente { get; set; }
+    public bool MensagemConfirmacaoEnviada { get; set; }
+    public DateTime? DataEnvioConfirmacao { get; set; }
 }
 
 public class FiltroReservaDto

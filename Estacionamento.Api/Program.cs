@@ -6,6 +6,7 @@ using System.Text;
 using Estacionamento.Api.Infrastructure.Data;
 using Estacionamento.Api.Infrastructure.Repositories;
 using Estacionamento.Api.Application.Services;
+using Estacionamento.Api.Application.Workers;
 using Estacionamento.Api.Helpers;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -167,6 +168,12 @@ builder.Services.AddScoped<IDisponibilidadeService, DisponibilidadeService>();
 builder.Services.AddScoped<IOrcamentoService, OrcamentoService>();
 builder.Services.AddScoped<ICaixaService, CaixaService>();
 builder.Services.AddScoped<IWhatsAppService, WhatsAppService>();
+
+// HttpClient para Evolution API
+builder.Services.AddHttpClient("EvolutionApi");
+
+// Background worker de confirmação de reservas
+builder.Services.AddHostedService<ConfirmacaoReservaWorker>();
 
 var app = builder.Build();
 

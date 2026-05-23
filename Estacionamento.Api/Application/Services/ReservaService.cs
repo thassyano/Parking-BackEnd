@@ -373,6 +373,9 @@ public class ReservaService : IReservaService
         DataCheckin = r.DataCheckin,
         DataCheckout = r.DataCheckout,
         Observacoes = r.Observacoes,
-        DataCriacao = r.DataCriacao
+        DataCriacao = r.DataCriacao,
+        ConfirmadaPeloCliente = r.ConfirmadaPeloCliente,
+        MensagemConfirmacaoEnviada = r.MensagemConfirmacaoEnviada,
+        DataEnvioConfirmacao = r.DataEnvioConfirmacao
     };
 }
