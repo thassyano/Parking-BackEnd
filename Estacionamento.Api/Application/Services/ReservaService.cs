@@ -44,13 +44,14 @@ public class ReservaService : IReservaService
         var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
         var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
         var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
+        var qtdDiasCalculado = CalcularQtdDias(dto.DataEntrada, dto.DataSaidaPrevista);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preco ativo para vaga {dto.TipoVaga}");
 
-        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, qtdDiasCalculado);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        var valorTotal = preco.ValorDiaria * qtdDiasCalculado;
 
         var reserva = new Reserva
         {
@@ -60,7 +61,7 @@ public class ReservaService : IReservaService
             PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = qtdDiasCalculado,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
@@ -110,13 +111,14 @@ public class ReservaService : IReservaService
         var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
         var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
         var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
+        var qtdDiasCalculado = CalcularQtdDias(dto.DataEntrada, dto.DataSaidaPrevista);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preco ativo para vaga {dto.TipoVaga}");
 
-        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, qtdDiasCalculado);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        var valorTotal = preco.ValorDiaria * qtdDiasCalculado;
 
         var reserva = new Reserva
         {
@@ -126,7 +128,7 @@ public class ReservaService : IReservaService
             PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = qtdDiasCalculado,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
@@ -341,6 +343,15 @@ public class ReservaService : IReservaService
             if (ocupadas >= totalVagas)
                 throw new InvalidOperationException($"Nao ha vagas {tipoVaga} disponiveis para {data:dd/MM/yyyy}");
         }
+    }
+
+    private static int CalcularQtdDias(DateTime dataEntrada, DateTime dataSaidaPrevista)
+    {
+        if (dataSaidaPrevista <= dataEntrada)
+            throw new InvalidOperationException("A data e hora de saida prevista devem ser posteriores a entrada");
+
+        var totalDias = (dataSaidaPrevista - dataEntrada).TotalDays;
+        return Math.Max(1, (int)Math.Ceiling(totalDias));
     }
 
     private static string NormalizarNomeCliente(string nomeCliente)
