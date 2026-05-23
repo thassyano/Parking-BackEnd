@@ -43,6 +43,7 @@ public class ReservaService : IReservaService
     {
         var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
         var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
+        var cpfCliente = NormalizarCpfCliente(dto.CpfCliente);
         var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
         var qtdDiasCalculado = CalcularQtdDias(dto.DataEntrada, dto.DataSaidaPrevista);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
@@ -57,7 +58,7 @@ public class ReservaService : IReservaService
         {
             NomeCliente = nomeCliente,
             TelefoneCliente = telefoneCliente,
-            CpfCliente = NormalizarCampoOpcional(dto.CpfCliente),
+            CpfCliente = cpfCliente,
             PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
@@ -110,6 +111,7 @@ public class ReservaService : IReservaService
     {
         var nomeCliente = NormalizarNomeCliente(dto.NomeCliente);
         var telefoneCliente = NormalizarTelefoneCliente(dto.TelefoneCliente);
+        var cpfCliente = NormalizarCpfCliente(dto.CpfCliente);
         var placaVeiculo = NormalizarPlacaVeiculo(dto.PlacaVeiculo);
         var qtdDiasCalculado = CalcularQtdDias(dto.DataEntrada, dto.DataSaidaPrevista);
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
@@ -124,7 +126,7 @@ public class ReservaService : IReservaService
         {
             NomeCliente = nomeCliente,
             TelefoneCliente = telefoneCliente,
-            CpfCliente = NormalizarCampoOpcional(dto.CpfCliente),
+            CpfCliente = cpfCliente,
             PlacaVeiculo = placaVeiculo,
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
@@ -358,6 +360,12 @@ public class ReservaService : IReservaService
     {
         var nomeNormalizado = Regex.Replace(nomeCliente.Trim(), @"\s+", " ");
 
+        if (nomeNormalizado.Length < 2)
+            throw new InvalidOperationException("O nome do cliente deve ter pelo menos 2 letras");
+
+        if (nomeNormalizado.Length > 200)
+            throw new InvalidOperationException("O nome do cliente deve ter no maximo 200 caracteres");
+
         if (!Regex.IsMatch(nomeNormalizado, @"^[\p{L}\s]+$"))
             throw new InvalidOperationException("O nome do cliente deve conter apenas letras");
 
@@ -372,6 +380,19 @@ public class ReservaService : IReservaService
             throw new InvalidOperationException("Telefone deve estar no formato (00) 000000000");
 
         return $"({digitos[..2]}) {digitos[2..]}";
+    }
+
+    private static string? NormalizarCpfCliente(string? cpfCliente)
+    {
+        if (string.IsNullOrWhiteSpace(cpfCliente))
+            return null;
+
+        var digitos = new string(cpfCliente.Where(char.IsDigit).ToArray());
+
+        if (digitos.Length != 11 || digitos.Distinct().Count() == 1 || !CpfValido(digitos))
+            throw new InvalidOperationException("CPF informado e invalido.");
+
+        return digitos;
     }
 
     private static string NormalizarPlacaVeiculo(string placaVeiculo)
@@ -390,6 +411,22 @@ public class ReservaService : IReservaService
     private static string? NormalizarCampoOpcional(string? valor)
     {
         return string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+    }
+
+    private static bool CpfValido(string cpf)
+    {
+        var numeros = cpf.Select(c => c - '0').ToArray();
+        var primeiroDigito = CalcularDigitoCpf(numeros.Take(9).ToArray(), 10);
+        var segundoDigito = CalcularDigitoCpf(numeros.Take(10).ToArray(), 11);
+
+        return primeiroDigito == numeros[9] && segundoDigito == numeros[10];
+    }
+
+    private static int CalcularDigitoCpf(int[] numeros, int pesoInicial)
+    {
+        var soma = numeros.Select((numero, index) => numero * (pesoInicial - index)).Sum();
+        var resto = (soma * 10) % 11;
+        return resto == 10 ? 0 : resto;
     }
 
     private static ReservaResponseDto MapToResponse(Reserva r) => new()

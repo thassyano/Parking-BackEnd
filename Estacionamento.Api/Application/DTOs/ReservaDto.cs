@@ -5,6 +5,8 @@ namespace Estacionamento.Api.Application.DTOs;
 public class CriarReservaOnlineDto
 {
     [Required(ErrorMessage = "O nome e obrigatorio")]
+    [MinLength(2, ErrorMessage = "O nome do cliente deve ter pelo menos 2 letras")]
+    [MaxLength(200, ErrorMessage = "O nome do cliente deve ter no maximo 200 caracteres")]
     [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
@@ -12,6 +14,7 @@ public class CriarReservaOnlineDto
     [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
+    [RegularExpression(@"^\d{11}$", ErrorMessage = "CPF informado e invalido.")]
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa e obrigatoria")]
@@ -38,6 +41,8 @@ public class CriarReservaOnlineDto
 public class CriarReservaPresencialDto
 {
     [Required(ErrorMessage = "O nome e obrigatorio")]
+    [MinLength(2, ErrorMessage = "O nome do cliente deve ter pelo menos 2 letras")]
+    [MaxLength(200, ErrorMessage = "O nome do cliente deve ter no maximo 200 caracteres")]
     [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
@@ -45,6 +50,7 @@ public class CriarReservaPresencialDto
     [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
+    [RegularExpression(@"^\d{11}$", ErrorMessage = "CPF informado e invalido.")]
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa e obrigatoria")]
@@ -87,6 +93,7 @@ public class ReservaResponseDto
     public int Id { get; set; }
     public string NomeCliente { get; set; } = string.Empty;
     public string TelefoneCliente { get; set; } = string.Empty;
+    [RegularExpression(@"^\d{11}$", ErrorMessage = "CPF informado e invalido.")]
     public string? CpfCliente { get; set; }
     public string? PlacaVeiculo { get; set; }
     public string TipoVaga { get; set; } = string.Empty;
@@ -141,6 +148,8 @@ public class CarroLoteDto
 public class CriarReservaLoteOnlineDto
 {
     [Required(ErrorMessage = "O nome e obrigatorio")]
+    [MinLength(2, ErrorMessage = "O nome do cliente deve ter pelo menos 2 letras")]
+    [MaxLength(200, ErrorMessage = "O nome do cliente deve ter no maximo 200 caracteres")]
     [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
@@ -148,6 +157,7 @@ public class CriarReservaLoteOnlineDto
     [RegularExpression(@"^\(\d{2}\)\s\d{9}$", ErrorMessage = "Telefone deve estar no formato (00) 000000000")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
+    [RegularExpression(@"^\d{11}$", ErrorMessage = "CPF informado e invalido.")]
     public string? CpfCliente { get; set; }
 
     [Required]
@@ -188,6 +198,8 @@ public class CarroPresencialLoteDto
 public class CriarReservaLotePresencialDto
 {
     [Required(ErrorMessage = "O nome e obrigatorio")]
+    [MinLength(2, ErrorMessage = "O nome do cliente deve ter pelo menos 2 letras")]
+    [MaxLength(200, ErrorMessage = "O nome do cliente deve ter no maximo 200 caracteres")]
     [RegularExpression(@"^[\p{L}\s]+$", ErrorMessage = "O nome do cliente deve conter apenas letras")]
     public string NomeCliente { get; set; } = string.Empty;
 
