@@ -1,5 +1,4 @@
 using Estacionamento.Api.Domain.Entities;
-using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
@@ -23,16 +22,22 @@ public class PrecoService : IPrecoService
 
     public async Task<IEnumerable<Preco>> ObterTodosAsync()
     {
+        await _precoRepository.DesativarPrecosExpiradosAsync();
+
         return await _precoRepository.ObterTodosAsync();
     }
 
     public async Task<IEnumerable<Preco>> ObterAtivosAsync()
     {
+        await _precoRepository.DesativarPrecosExpiradosAsync();
+
         return await _precoRepository.ObterAtivosAsync();
     }
 
     public async Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga)
     {
+        await _precoRepository.DesativarPrecosExpiradosAsync();
+
         return await _precoRepository.ObterAtivoAsync(tipoVaga);
     }
 

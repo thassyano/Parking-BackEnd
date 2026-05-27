@@ -13,6 +13,7 @@ public interface IPrecoRepository
     Task<Preco?> ObterAtivoAsync(TipoVaga tipoVaga);
     Task<Preco> CriarAsync(Preco preco);
     Task<Preco> AtualizarAsync(Preco preco);
+    Task DesativarPrecosExpiradosAsync();
 }
 
 public class PrecoRepository : IPrecoRepository
@@ -84,5 +85,18 @@ public class PrecoRepository : IPrecoRepository
         _context.Precos.Update(preco);
         await _context.SaveChangesAsync();
         return preco;
+    }
+    
+    public async Task DesativarPrecosExpiradosAsync()
+    {
+        var agora = DateTime.UtcNow.Date;
+
+        await _context.Precos
+            .Where(preco =>
+                preco.Ativo &&
+                preco.DataFim.HasValue &&
+                preco.DataFim.Value.Date < agora)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(preco => preco.Ativo, false));
     }
 }
