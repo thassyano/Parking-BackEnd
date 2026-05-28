@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
+using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
@@ -23,6 +23,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> CriarAdmin([FromBody] CriarAdminDto dto)
     {
         if (!ModelState.IsValid)
@@ -30,21 +31,19 @@ public class AdminController : ControllerBase
 
         try
         {
-            // Verificar se o usuário já existe
             var usuarioExistente = await _context.Admins
                 .AnyAsync(a => a.Usuario == dto.Usuario || a.Email == dto.Email);
 
             if (usuarioExistente)
-            {
                 return BadRequest(new { message = "Usuário ou email já existe" });
-            }
 
-            // Criar novo admin
             var admin = new Admin
             {
                 Usuario = dto.Usuario,
                 SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
                 Email = dto.Email,
+                Nome = dto.Nome ?? string.Empty,
+                Perfil = PerfilAdmin.Admin,
                 Ativo = true,
                 DataCriacao = DateTimeHelper.AgoraBrasilia()
             };
@@ -54,17 +53,7 @@ public class AdminController : ControllerBase
 
             _logger.LogInformation("Admin criado: {Usuario}", admin.Usuario);
 
-            return CreatedAtAction(
-                nameof(ObterPorId),
-                new { id = admin.Id },
-                new
-                {
-                    id = admin.Id,
-                    usuario = admin.Usuario,
-                    email = admin.Email,
-                    ativo = admin.Ativo,
-                    dataCriacao = admin.DataCriacao
-                });
+            return CreatedAtAction(nameof(ObterPorId), new { id = admin.Id }, MapResponse(admin));
         }
         catch (Exception ex)
         {
@@ -74,16 +63,20 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> ListarTodos()
     {
         var admins = await _context.Admins
-            .Select(a => new
+            .OrderBy(a => a.Usuario)
+            .Select(a => new AdminResponseDto
             {
-                id = a.Id,
-                usuario = a.Usuario,
-                email = a.Email,
-                ativo = a.Ativo,
-                dataCriacao = a.DataCriacao
+                Id = a.Id,
+                Usuario = a.Usuario,
+                Email = a.Email,
+                Nome = a.Nome,
+                Perfil = a.Perfil,
+                Ativo = a.Ativo,
+                DataCriacao = a.DataCriacao
             })
             .ToListAsync();
 
@@ -91,27 +84,49 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> ObterPorId(int id)
     {
-        var admin = await _context.Admins
-            .Where(a => a.Id == id)
-            .Select(a => new
-            {
-                id = a.Id,
-                usuario = a.Usuario,
-                email = a.Email,
-                ativo = a.Ativo,
-                dataCriacao = a.DataCriacao
-            })
-            .FirstOrDefaultAsync();
-
+        var admin = await _context.Admins.FindAsync(id);
         if (admin == null)
             return NotFound();
 
-        return Ok(admin);
+        return Ok(MapResponse(admin));
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
+    public async Task<IActionResult> AtualizarAdmin(int id, [FromBody] AtualizarAdminDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var admin = await _context.Admins.FindAsync(id);
+        if (admin == null)
+            return NotFound();
+
+        var duplicado = await _context.Admins
+            .AnyAsync(a => a.Id != id && (a.Usuario == dto.Usuario || a.Email == dto.Email));
+
+        if (duplicado)
+            return BadRequest(new { message = "Usuário ou email já existe" });
+
+        admin.Usuario = dto.Usuario;
+        admin.Email = dto.Email;
+        admin.Nome = dto.Nome ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(dto.Senha))
+            admin.SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Admin atualizado: {Usuario}", admin.Usuario);
+
+        return Ok(MapResponse(admin));
     }
 
     [HttpPut("{id}/ativar")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> AtivarDesativar(int id, [FromBody] AtivarAdminDto dto)
     {
         var admin = await _context.Admins.FindAsync(id);
@@ -125,35 +140,36 @@ public class AdminController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> Deletar(int id)
     {
         var admin = await _context.Admins.FindAsync(id);
         if (admin == null)
             return NotFound();
 
-        // Não permitir deletar o próprio admin (se quiser, pode remover essa validação)
         var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (currentUserId == admin.Id.ToString())
-        {
             return BadRequest(new { message = "Não é possível deletar seu próprio usuário" });
-        }
 
         _context.Admins.Remove(admin);
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Admin deletado com sucesso" });
     }
-}
 
-public class CriarAdminDto
-{
-    public string Usuario { get; set; } = string.Empty;
-    public string Senha { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+    private static AdminResponseDto MapResponse(Admin admin) => new()
+    {
+        Id = admin.Id,
+        Usuario = admin.Usuario,
+        Email = admin.Email,
+        Nome = admin.Nome,
+        Perfil = admin.Perfil,
+        Ativo = admin.Ativo,
+        DataCriacao = admin.DataCriacao
+    };
 }
 
 public class AtivarAdminDto
 {
     public bool Ativo { get; set; }
 }
-

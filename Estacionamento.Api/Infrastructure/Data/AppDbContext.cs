@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SenhaHash).IsRequired().HasMaxLength(255);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Nome).HasMaxLength(100);
+            entity.Property(e => e.Perfil).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(e => e.Usuario).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
         });
