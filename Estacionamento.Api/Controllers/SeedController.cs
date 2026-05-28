@@ -42,7 +42,8 @@ public class SeedController : ControllerBase
                 Usuario = dto.Usuario,
                 SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
                 Email = dto.Email,
-                Nome = dto.Usuario
+                Nome = dto.Usuario,
+                Perfil = PerfilAdmin.AdminMaster
             };
             _context.Admins.Add(admin);
 
