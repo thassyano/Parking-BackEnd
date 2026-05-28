@@ -11,6 +11,7 @@ public interface IWhatsAppService
     Task<WhatsAppRedirectDto> GerarLinkAsync(int reservaId);
     Task<WhatsAppRedirectDto> GerarLinkLoteAsync(List<int> reservaIds);
     Task<bool> EnviarConfirmacaoViaEvolutionAsync(Reserva reserva, ConfiguracaoEstacionamento config);
+    Task<(bool Sucesso, string? Erro)> EnviarMensagemTesteAsync(string telefoneCliente, ConfiguracaoEstacionamento config);
 }
 
 public class WhatsAppService : IWhatsAppService
@@ -18,30 +19,37 @@ public class WhatsAppService : IWhatsAppService
     private readonly IReservaRepository _reservaRepository;
     private readonly IConfiguracaoRepository _configuracaoRepository;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<WhatsAppService> _logger;
 
     public WhatsAppService(
         IReservaRepository reservaRepository,
         IConfiguracaoRepository configuracaoRepository,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ILogger<WhatsAppService> logger)
     {
         _reservaRepository = reservaRepository;
         _configuracaoRepository = configuracaoRepository;
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<bool> EnviarConfirmacaoViaEvolutionAsync(Reserva reserva, ConfiguracaoEstacionamento config)
     {
-        if (string.IsNullOrEmpty(config.EvolutionApiUrl)
-            || string.IsNullOrEmpty(config.EvolutionApiKey)
-            || string.IsNullOrEmpty(config.EvolutionInstanceName))
+        if (!EvolutionConfigurada(config))
+        {
+            _logger.LogWarning("Evolution API não configurada (URL, key ou instância ausente).");
             return false;
+        }
 
         var telefone = FormatarTelefoneInternacional(reserva.TelefoneCliente);
         if (string.IsNullOrEmpty(telefone))
+        {
+            _logger.LogWarning("Telefone inválido para reserva {Id}: {Telefone}.", reserva.Id, reserva.TelefoneCliente);
             return false;
+        }
 
         var linkConfirmacao = string.IsNullOrEmpty(config.UrlConfirmacaoFrontend)
-            ? $"(link de confirmação não configurado - token: {reserva.ConfirmacaoToken})"
+            ? $"(configure UrlConfirmacaoFrontend - token: {reserva.ConfirmacaoToken})"
             : $"{config.UrlConfirmacaoFrontend.TrimEnd('/')}/confirmar?token={reserva.ConfirmacaoToken}";
 
         var nomeEstacionamento = string.IsNullOrEmpty(config.NomeEstacionamento)
@@ -56,21 +64,81 @@ public class WhatsAppService : IWhatsAppService
             $"📆 Dias: {reserva.QtdDias}\n\n" +
             $"✅ *Para CONFIRMAR sua reserva, clique aqui:*\n{linkConfirmacao}\n\n" +
             $"⚠️ Se não confirmar antes da data de entrada, a reserva será cancelada automaticamente.\n\n" +
-            $"Dúvidas? {config.TelefoneWhatsApp ?? ""}";
+            $"Dúvidas? Entre em contato\n\n" +
+            $"*Atenção*, se tiver reservado mais de um veiculo, será necessário confirmar cada um.";
 
-        var payload = new { number = telefone, text = mensagem };
-        var json = JsonSerializer.Serialize(payload);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var (sucesso, _) = await EnviarTextoEvolutionAsync(telefone, mensagem, config);
+        return sucesso;
+    }
 
-        var url = $"{config.EvolutionApiUrl.TrimEnd('/')}/message/sendText/{config.EvolutionInstanceName}";
+    public async Task<(bool Sucesso, string? Erro)> EnviarMensagemTesteAsync(string telefoneCliente, ConfiguracaoEstacionamento config)
+    {
+        if (!EvolutionConfigurada(config))
+            return (false, "Evolution API não configurada (URL, key ou instância).");
+
+        var telefone = FormatarTelefoneInternacional(telefoneCliente);
+        if (string.IsNullOrEmpty(telefone))
+            return (false, "Telefone inválido. Use DDD + número (10 ou 11 dígitos) ou 55 + DDD + número.");
+
+        var nome = string.IsNullOrEmpty(config.NomeEstacionamento) ? "Estacionamento" : config.NomeEstacionamento;
+        var mensagem = $"✅ Teste de integração WhatsApp — *{nome}*.\n\nSe você recebeu esta mensagem, a Evolution API está funcionando.";
+
+        return await EnviarTextoEvolutionAsync(telefone, mensagem, config);
+    }
+
+    private async Task<(bool Sucesso, string? Erro)> EnviarTextoEvolutionAsync(string telefone, string mensagem, ConfiguracaoEstacionamento config)
+    {
+        var url = $"{config.EvolutionApiUrl!.TrimEnd('/')}/message/sendText/{config.EvolutionInstanceName}";
 
         var client = _httpClientFactory.CreateClient("EvolutionApi");
         client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Add("apikey", config.EvolutionApiKey);
 
-        var response = await client.PostAsync(url, content);
-        return response.IsSuccessStatusCode;
+        // v2.3+ (evoapicloud): { number, text } | v2.2.x (atendai): { number, textMessage: { text } }
+        var formatos = new object[]
+        {
+            new { number = telefone, text = mensagem },
+            new { number = telefone, textMessage = new { text = mensagem } }
+        };
+
+        string? ultimoErro = null;
+
+        foreach (var payload in formatos)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await client.PostAsync(url, content);
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Evolution sendText OK para {Telefone}.", telefone);
+                    return (true, null);
+                }
+
+                ultimoErro = $"HTTP {(int)response.StatusCode}: {body}";
+                _logger.LogWarning("Evolution sendText tentativa falhou: {Erro}. URL: {Url}", ultimoErro, url);
+
+                // 401/404 não adianta tentar outro formato
+                if ((int)response.StatusCode is 401 or 404)
+                    break;
+            }
+            catch (Exception ex)
+            {
+                ultimoErro = ex.Message;
+                _logger.LogError(ex, "Erro ao chamar Evolution API em {Url}.", url);
+            }
+        }
+
+        return (false, ultimoErro);
     }
+
+    private static bool EvolutionConfigurada(ConfiguracaoEstacionamento config) =>
+        !string.IsNullOrEmpty(config.EvolutionApiUrl)
+        && !string.IsNullOrEmpty(config.EvolutionApiKey)
+        && !string.IsNullOrEmpty(config.EvolutionInstanceName);
 
     private static string? FormatarTelefoneInternacional(string telefone)
     {
@@ -78,11 +146,9 @@ public class WhatsAppService : IWhatsAppService
 
         if (string.IsNullOrEmpty(digits)) return null;
 
-        // Se já começa com 55 e tem 12-13 dígitos, está correto
         if (digits.StartsWith("55") && digits.Length >= 12)
             return digits;
 
-        // 10 ou 11 dígitos = número brasileiro sem código do país
         if (digits.Length is 10 or 11)
             return "55" + digits;
 

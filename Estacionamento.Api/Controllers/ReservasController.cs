@@ -128,6 +128,28 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>Alterar duração da reserva e recalcular valor (apenas Pendente/Confirmada)</summary>
+    [HttpPatch("{id}/alterar")]
+    [Authorize]
+    public async Task<IActionResult> Alterar(int id, [FromBody] AtualizarReservaDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var reserva = await _reservaService.AtualizarAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>Associar placa ao cliente online quando ele chega no estacionamento</summary>
     [HttpPatch("{id}/placa")]
     [Authorize]

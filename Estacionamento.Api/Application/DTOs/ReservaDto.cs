@@ -199,3 +199,14 @@ public class CriarReservaLotePresencialDto
     [MinLength(1, ErrorMessage = "Informe pelo menos um veículo")]
     public List<CarroPresencialLoteDto> Carros { get; set; } = new();
 }
+
+// === Alterar duração e recalcular valor ===
+public class AtualizarReservaDto
+{
+    [Required]
+    [Range(1, 365)]
+    public int QtdDias { get; set; }
+
+    [Required]
+    public DateTime DataSaidaPrevista { get; set; }
+}

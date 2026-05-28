@@ -8,20 +8,32 @@ namespace Estacionamento.Api.Application.Workers;
 public class ConfirmacaoReservaWorker : BackgroundService
 {
     private const string MotivosCancelamento = "Cancelada automaticamente por falta de confirmação via WhatsApp.";
-    private static readonly TimeSpan IntervaloExecucao = TimeSpan.FromHours(2);
+    private static readonly TimeSpan IntervaloProducao = TimeSpan.FromHours(2);
+    private static readonly TimeSpan IntervaloDesenvolvimento = TimeSpan.FromMinutes(2);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<ConfirmacaoReservaWorker> _logger;
 
-    public ConfirmacaoReservaWorker(IServiceScopeFactory scopeFactory, ILogger<ConfirmacaoReservaWorker> logger)
+    public ConfirmacaoReservaWorker(
+        IServiceScopeFactory scopeFactory,
+        IHostEnvironment environment,
+        ILogger<ConfirmacaoReservaWorker> logger)
     {
         _scopeFactory = scopeFactory;
+        _environment = environment;
         _logger = logger;
     }
 
+    private TimeSpan IntervaloExecucao =>
+        _environment.IsDevelopment() ? IntervaloDesenvolvimento : IntervaloProducao;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("ConfirmacaoReservaWorker iniciado. Intervalo: {h}h.", IntervaloExecucao.TotalHours);
+        _logger.LogInformation(
+            "ConfirmacaoReservaWorker iniciado. Intervalo: {Intervalo} ({Ambiente}).",
+            IntervaloExecucao,
+            _environment.EnvironmentName);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -82,14 +94,19 @@ public class ConfirmacaoReservaWorker : BackgroundService
         {
             var enviado = await whatsAppService.EnviarConfirmacaoViaEvolutionAsync(reserva, config);
 
-            reserva.MensagemConfirmacaoEnviada = true;
-            reserva.DataEnvioConfirmacao = DateTimeHelper.AgoraBrasilia();
-            await reservaRepo.AtualizarAsync(reserva);
-
             if (enviado)
+            {
+                reserva.MensagemConfirmacaoEnviada = true;
+                reserva.DataEnvioConfirmacao = DateTimeHelper.AgoraBrasilia();
+                await reservaRepo.AtualizarAsync(reserva);
                 _logger.LogInformation("Mensagem enviada: reserva {Id} ({Nome}).", reserva.Id, reserva.NomeCliente);
+            }
             else
-                _logger.LogWarning("Evolution API ausente. Reserva {Id} marcada sem envio.", reserva.Id);
+            {
+                _logger.LogWarning(
+                    "Mensagem NÃO enviada para reserva {Id}. Verifique Evolution (container, instância conectada e configuração).",
+                    reserva.Id);
+            }
         }
         catch (Exception ex)
         {

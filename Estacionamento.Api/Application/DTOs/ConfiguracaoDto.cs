@@ -62,3 +62,10 @@ public class ConfiguracaoResponseDto
     public int HorasAntecedenciaConfirmacao { get; set; }
     public DateTime DataAtualizacao { get; set; }
 }
+
+public class TestarEvolutionDto
+{
+    [Required]
+    [MaxLength(20)]
+    public string TelefoneCliente { get; set; } = string.Empty;
+}
