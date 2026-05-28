@@ -365,6 +365,10 @@ FodyWeavers.xsd
 # Sensitive config
 **/appsettings.Development.json
 **/appsettings.Production.json
+.env
+.env.*
+!.env*.example
+.claude/settings.local.json
 
 # Publish artifacts
 .publish/

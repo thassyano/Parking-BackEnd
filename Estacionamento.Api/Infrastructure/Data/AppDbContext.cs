@@ -59,9 +59,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FormaPagamento).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Origem).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Observacoes).HasMaxLength(500);
+            entity.Property(e => e.ConfirmacaoToken).IsRequired();
 
             entity.HasIndex(e => e.DataEntrada);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ConfirmacaoToken).IsUnique();
         });
 
         modelBuilder.Entity<ConfiguracaoEstacionamento>(entity =>
@@ -73,6 +75,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Cnpj).HasMaxLength(20);
             entity.Property(e => e.TelefoneWhatsApp).HasMaxLength(20);
             entity.Property(e => e.MensagemWhatsApp).HasMaxLength(1000);
+            entity.Property(e => e.EvolutionApiUrl).HasMaxLength(500);
+            entity.Property(e => e.EvolutionApiKey).HasMaxLength(200);
+            entity.Property(e => e.EvolutionInstanceName).HasMaxLength(100);
+            entity.Property(e => e.UrlConfirmacaoFrontend).HasMaxLength(500);
         });
     }
 }

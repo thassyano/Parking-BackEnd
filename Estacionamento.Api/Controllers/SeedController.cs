@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Domain.Entities;
@@ -11,17 +12,22 @@ namespace Estacionamento.Api.Controllers;
 public class SeedController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SeedController> _logger;
 
-    public SeedController(AppDbContext context, ILogger<SeedController> logger)
+    public SeedController(AppDbContext context, IWebHostEnvironment environment, ILogger<SeedController> logger)
     {
         _context = context;
+        _environment = environment;
         _logger = logger;
     }
 
     [HttpPost]
     public async Task<IActionResult> Seed([FromBody] SeedDto dto)
     {
+        if (!_environment.IsDevelopment())
+            return NotFound();
+
         try
         {
             var canConnect = await _context.Database.CanConnectAsync();

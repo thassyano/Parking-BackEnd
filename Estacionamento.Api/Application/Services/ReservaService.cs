@@ -20,6 +20,7 @@ public interface IReservaService
     Task<ReservaResponseDto?> CancelarAsync(int id);
     Task<CupomEntradaDto?> GerarCupomEntradaAsync(int id);
     Task<CupomSaidaDto?> GerarCupomSaidaAsync(int id);
+    Task<ReservaResponseDto?> AtualizarAsync(int id, AtualizarReservaDto dto);
 }
 
 public class ReservaService : IReservaService
@@ -332,6 +333,27 @@ public class ReservaService : IReservaService
         };
     }
 
+    public async Task<ReservaResponseDto?> AtualizarAsync(int id, AtualizarReservaDto dto)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null) return null;
+
+        if (reserva.Status != StatusReserva.Pendente && reserva.Status != StatusReserva.Confirmada)
+            throw new InvalidOperationException("Só é possível alterar reservas com status Pendente ou Confirmada");
+
+        var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga)
+            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {reserva.TipoVaga}");
+
+        reserva.QtdDias = dto.QtdDias;
+        reserva.DataSaidaPrevista = dto.DataSaidaPrevista;
+        reserva.ValorDiaria = preco.ValorDiaria;
+        reserva.ValorTotal = preco.ValorDiaria * dto.QtdDias;
+        reserva.ValorFinal = reserva.ValorTotal;
+
+        await _reservaRepository.AtualizarAsync(reserva);
+        return MapToResponse(reserva);
+    }
+
     private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias)
     {
         var config = await _configuracaoRepository.ObterAsync()
@@ -373,6 +395,9 @@ public class ReservaService : IReservaService
         DataCheckin = r.DataCheckin,
         DataCheckout = r.DataCheckout,
         Observacoes = r.Observacoes,
-        DataCriacao = r.DataCriacao
+        DataCriacao = r.DataCriacao,
+        ConfirmadaPeloCliente = r.ConfirmadaPeloCliente,
+        MensagemConfirmacaoEnviada = r.MensagemConfirmacaoEnviada,
+        DataEnvioConfirmacao = r.DataEnvioConfirmacao
     };
 }

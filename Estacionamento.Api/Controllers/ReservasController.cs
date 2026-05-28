@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
+using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -11,11 +13,13 @@ public class ReservasController : ControllerBase
 {
     private readonly IReservaService _reservaService;
     private readonly IWhatsAppService _whatsAppService;
+    private readonly IReservaRepository _reservaRepository;
 
-    public ReservasController(IReservaService reservaService, IWhatsAppService whatsAppService)
+    public ReservasController(IReservaService reservaService, IWhatsAppService whatsAppService, IReservaRepository reservaRepository)
     {
         _reservaService = reservaService;
         _whatsAppService = whatsAppService;
+        _reservaRepository = reservaRepository;
     }
 
     /// <summary>Listar reservas (com filtros opcionais)</summary>
@@ -117,6 +121,28 @@ public class ReservasController : ControllerBase
         {
             var resultado = await _reservaService.CriarPresencialLoteAsync(dto);
             return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Alterar duração da reserva e recalcular valor (apenas Pendente/Confirmada)</summary>
+    [HttpPatch("{id}/alterar")]
+    [Authorize]
+    public async Task<IActionResult> Alterar(int id, [FromBody] AtualizarReservaDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var reserva = await _reservaService.AtualizarAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            return Ok(reserva);
         }
         catch (InvalidOperationException ex)
         {
@@ -236,6 +262,41 @@ public class ReservasController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    /// <summary>Confirmar reserva via link enviado por WhatsApp (público, sem autenticação)</summary>
+    [HttpGet("confirmar/{token:guid}")]
+    public async Task<IActionResult> ConfirmarReserva(Guid token)
+    {
+        var reserva = await _reservaRepository.ObterPorTokenAsync(token);
+        if (reserva == null)
+            return NotFound(new { message = "Link de confirmação inválido ou expirado." });
+
+        if (reserva.Status == StatusReserva.Cancelada)
+            return BadRequest(new { message = "Esta reserva já foi cancelada.", status = "Cancelada" });
+
+        if (reserva.Status == StatusReserva.CheckoutRealizado)
+            return Ok(new { message = "Reserva já concluída.", confirmada = true, reservaId = reserva.Id, nomeCliente = reserva.NomeCliente, dataEntrada = reserva.DataEntrada });
+
+        if (!reserva.ConfirmadaPeloCliente)
+        {
+            reserva.ConfirmadaPeloCliente = true;
+            if (reserva.Status == StatusReserva.Pendente)
+                reserva.Status = StatusReserva.Confirmada;
+
+            await _reservaRepository.AtualizarAsync(reserva);
+        }
+
+        return Ok(new
+        {
+            message = "Reserva confirmada com sucesso!",
+            confirmada = true,
+            reservaId = reserva.Id,
+            nomeCliente = reserva.NomeCliente,
+            dataEntrada = reserva.DataEntrada,
+            tipoVaga = reserva.TipoVaga.ToString(),
+            placa = reserva.PlacaVeiculo
+        });
     }
 
     /// <summary>Gerar link WhatsApp consolidado para múltiplas reservas</summary>

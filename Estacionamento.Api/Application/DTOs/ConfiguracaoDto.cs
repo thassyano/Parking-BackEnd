@@ -30,6 +30,18 @@ public class AtualizarConfiguracaoDto
 
     [Range(1, 168)]
     public int? HorasAntecedenciaConfirmacao { get; set; }
+
+    [MaxLength(500)]
+    public string? EvolutionApiUrl { get; set; }
+
+    [MaxLength(200)]
+    public string? EvolutionApiKey { get; set; }
+
+    [MaxLength(100)]
+    public string? EvolutionInstanceName { get; set; }
+
+    [MaxLength(500)]
+    public string? UrlConfirmacaoFrontend { get; set; }
 }
 
 public class ConfiguracaoResponseDto
@@ -43,6 +55,17 @@ public class ConfiguracaoResponseDto
     public int TotalVagasDescoberta { get; set; }
     public string? TelefoneWhatsApp { get; set; }
     public string? MensagemWhatsApp { get; set; }
+    public string? EvolutionApiUrl { get; set; }
+    public string? EvolutionInstanceName { get; set; }
+    public bool EvolutionConfigurada { get; set; }
+    public string? UrlConfirmacaoFrontend { get; set; }
     public int HorasAntecedenciaConfirmacao { get; set; }
     public DateTime DataAtualizacao { get; set; }
+}
+
+public class TestarEvolutionDto
+{
+    [Required]
+    [MaxLength(20)]
+    public string TelefoneCliente { get; set; } = string.Empty;
 }
