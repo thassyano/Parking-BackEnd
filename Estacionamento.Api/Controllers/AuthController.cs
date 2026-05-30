@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Estacionamento.Api.Application.DTOs;
+using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -18,12 +19,18 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
+    private readonly ILogAtividadeService _logAtividadeService;
 
-    public AuthController(AppDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(
+        AppDbContext context,
+        IConfiguration configuration,
+        ILogger<AuthController> logger,
+        ILogAtividadeService logAtividadeService)
     {
         _context = context;
         _configuration = configuration;
         _logger = logger;
+        _logAtividadeService = logAtividadeService;
     }
 
     [HttpPost("login")]
@@ -61,6 +68,14 @@ public class AuthController : ControllerBase
 
             if (admin == null)
             {
+                await _logAtividadeService.RegistrarAsync(new RegistrarLogAtividadeDto
+                {
+                    AdminUsuario = loginDto.Usuario,
+                    Acao = AcaoLog.LoginFalha,
+                    Detalhes = "Usuário não encontrado ou inativo",
+                    Sucesso = false,
+                    Origem = OrigemLog.Admin
+                });
                 return Unauthorized(new { message = "Usuário não encontrado ou inativo" });
             }
 
@@ -78,6 +93,17 @@ public class AuthController : ControllerBase
 
             if (!senhaValida)
             {
+                await _logAtividadeService.RegistrarAsync(new RegistrarLogAtividadeDto
+                {
+                    AdminId = admin.Id,
+                    AdminUsuario = admin.Usuario,
+                    Acao = AcaoLog.LoginFalha,
+                    Detalhes = "Senha inválida",
+                    Sucesso = false,
+                    Origem = OrigemLog.Admin,
+                    Entidade = "Admin",
+                    EntidadeId = admin.Id
+                });
                 return Unauthorized(new { message = "Senha inválida" });
             }
 
@@ -101,6 +127,17 @@ public class AuthController : ControllerBase
                 Perfil = admin.Perfil.ToString(),
                 ExpiraEm = DateTimeHelper.AgoraBrasilia().AddHours(8)
             };
+
+            await _logAtividadeService.RegistrarAsync(new RegistrarLogAtividadeDto
+            {
+                AdminId = admin.Id,
+                AdminUsuario = admin.Usuario,
+                Acao = AcaoLog.LoginSucesso,
+                Detalhes = $"Login realizado por {admin.Usuario}",
+                Entidade = "Admin",
+                EntidadeId = admin.Id,
+                Origem = OrigemLog.Admin
+            });
 
             return Ok(response);
         }

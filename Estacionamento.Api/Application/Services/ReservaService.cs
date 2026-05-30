@@ -41,6 +41,8 @@ public class ReservaService : IReservaService
 
     public async Task<ReservaResponseDto> CriarOnlineAsync(CriarReservaOnlineDto dto)
     {
+        DateTimeHelper.ValidarPeriodoReserva(dto.DataEntrada, dto.DataSaidaPrevista);
+
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");

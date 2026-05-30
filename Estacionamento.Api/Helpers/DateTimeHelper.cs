@@ -14,4 +14,15 @@ public static class DateTimeHelper
         dt.Kind == DateTimeKind.Utc
             ? TimeZoneInfo.ConvertTimeFromUtc(dt, BrasiliaTimeZone)
             : dt;
+
+    public static void ValidarPeriodoReserva(DateTime dataInicio, DateTime dataFim)
+    {
+        var hoje = AgoraBrasilia().Date;
+
+        if (dataInicio.Date < hoje)
+            throw new InvalidOperationException("A data de entrada não pode ser anterior a hoje");
+
+        if (dataFim.Date < dataInicio.Date)
+            throw new InvalidOperationException("A data de saída deve ser maior ou igual à data de entrada");
+    }
 }

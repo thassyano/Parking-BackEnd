@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.Services;
+using Estacionamento.Api.Helpers;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -17,6 +18,15 @@ public class DisponibilidadeController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> ConsultarDia([FromQuery] DateTime data)
     {
+        try
+        {
+            DateTimeHelper.ValidarPeriodoReserva(data, data);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
         var disponibilidade = await _disponibilidadeService.ConsultarDiaAsync(data);
         return Ok(disponibilidade);
     }
@@ -24,8 +34,14 @@ public class DisponibilidadeController : ControllerBase
     [HttpGet("periodo")]
     public async Task<IActionResult> ConsultarPeriodo([FromQuery] DateTime dataInicio, [FromQuery] DateTime dataFim)
     {
-        if (dataFim < dataInicio)
-            return BadRequest(new { message = "Data fim deve ser maior ou igual à data início" });
+        try
+        {
+            DateTimeHelper.ValidarPeriodoReserva(dataInicio, dataFim);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
 
         if ((dataFim - dataInicio).TotalDays > 60)
             return BadRequest(new { message = "Período máximo de consulta é 60 dias" });
