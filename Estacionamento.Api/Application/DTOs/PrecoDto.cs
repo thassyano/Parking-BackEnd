@@ -14,6 +14,12 @@ public class CriarPrecoDto
     [Range(0, double.MaxValue)]
     public decimal DescontoPixDinheiro { get; set; } // R$ de desconto por diária
 
+    [Range(0, double.MaxValue)]
+    public decimal ValorHorasAdicionaisAte6h { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal ValorHorasAdicionaisAte12h { get; set; }
+
     [Required(ErrorMessage = "A data de início é obrigatória")]
     public DateTime DataInicio { get; set; }
 
@@ -26,6 +32,8 @@ public class PrecoResponseDto
     public string TipoVaga { get; set; } = string.Empty;
     public decimal ValorDiaria { get; set; }
     public decimal DescontoPixDinheiro { get; set; }
+    public decimal ValorHorasAdicionaisAte6h { get; set; }
+    public decimal ValorHorasAdicionaisAte12h { get; set; }
     public DateTime DataInicio { get; set; }
     public DateTime? DataFim { get; set; }
     public bool Ativo { get; set; }

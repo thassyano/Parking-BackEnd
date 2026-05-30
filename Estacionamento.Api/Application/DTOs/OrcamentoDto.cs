@@ -10,8 +10,8 @@ public class ConsultaOrcamentoDto
     [Required]
     public DateTime DataEntrada { get; set; }
 
-    [Range(1, 365)]
-    public int QtdDias { get; set; } = 1;
+    [Required]
+    public DateTime DataSaidaPrevista { get; set; }
 }
 
 public class OrcamentoResponseDto
@@ -20,6 +20,7 @@ public class OrcamentoResponseDto
     public DateTime DataEntrada { get; set; }
     public int QtdDias { get; set; }
     public DateTime DataSaidaPrevista { get; set; }
+    public string TipoPrecificacao { get; set; } = "Diaria"; // HorasAte6h | HorasAte12h | Diaria
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotalCartao { get; set; }
     public decimal ValorTotalPixDinheiro { get; set; }

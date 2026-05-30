@@ -35,6 +35,7 @@ public class CupomSaidaDto
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotal { get; set; }
     public decimal DescontoAplicado { get; set; }
+    public decimal ValorHorasAdicionais { get; set; }
     public decimal ValorFinal { get; set; }
     public string FormaPagamento { get; set; } = string.Empty;
 }

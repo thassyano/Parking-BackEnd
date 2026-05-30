@@ -2,6 +2,7 @@ using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
+using static Estacionamento.Api.Helpers.PrecificacaoHelper;
 
 namespace Estacionamento.Api.Application.Services;
 
@@ -21,6 +22,7 @@ public interface IReservaService
     Task<CupomEntradaDto?> GerarCupomEntradaAsync(int id);
     Task<CupomSaidaDto?> GerarCupomSaidaAsync(int id);
     Task<ReservaResponseDto?> AtualizarAsync(int id, AtualizarReservaDto dto);
+    Task<ReservaResponseDto?> AtualizarClienteAsync(int id, AtualizarReservaClienteDto dto);
 }
 
 public class ReservaService : IReservaService
@@ -49,7 +51,7 @@ public class ReservaService : IReservaService
 
         await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        var (valorTotal, qtdDiasCalculado, _) = PrecificacaoHelper.Calcular(preco, dto.DataEntrada, dto.DataSaidaPrevista);
 
         var reserva = new Reserva
         {
@@ -59,7 +61,7 @@ public class ReservaService : IReservaService
             PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = qtdDiasCalculado,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
@@ -120,7 +122,7 @@ public class ReservaService : IReservaService
 
         await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        var (valorTotal, qtdDiasCalculado, _) = PrecificacaoHelper.Calcular(preco, dto.DataEntrada, dto.DataSaidaPrevista);
 
         var reserva = new Reserva
         {
@@ -130,7 +132,7 @@ public class ReservaService : IReservaService
             PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = qtdDiasCalculado,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
             ValorTotal = valorTotal,
@@ -259,13 +261,18 @@ public class ReservaService : IReservaService
             desconto = descontoPorDia * reserva.QtdDias;
         }
 
+        // Calcula horas adicionais se o veículo saiu após DataSaidaPrevista
+        var dataCheckout = DateTimeHelper.AgoraBrasilia();
+        var valorHorasAdicionais = CalcularHorasAdicionais(reserva, preco, dataCheckout);
+
         reserva.FormaPagamento = formaPagamento;
         reserva.DescontoAplicado = desconto;
-        reserva.ValorFinal = reserva.ValorTotal - desconto;
+        reserva.ValorHorasAdicionais = valorHorasAdicionais;
+        reserva.ValorFinal = reserva.ValorTotal - desconto + valorHorasAdicionais;
         reserva.Pago = true;
-        reserva.DataPagamento = DateTimeHelper.AgoraBrasilia();
+        reserva.DataPagamento = dataCheckout;
         reserva.Status = StatusReserva.CheckoutRealizado;
-        reserva.DataCheckout = DateTimeHelper.AgoraBrasilia();
+        reserva.DataCheckout = dataCheckout;
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -330,6 +337,7 @@ public class ReservaService : IReservaService
             ValorDiaria = reserva.ValorDiaria,
             ValorTotal = reserva.ValorTotal,
             DescontoAplicado = reserva.DescontoAplicado,
+            ValorHorasAdicionais = reserva.ValorHorasAdicionais,
             ValorFinal = reserva.ValorFinal,
             FormaPagamento = reserva.FormaPagamento?.ToString() ?? "-"
         };
@@ -346,14 +354,56 @@ public class ReservaService : IReservaService
         var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {reserva.TipoVaga}");
 
-        reserva.QtdDias = dto.QtdDias;
+        var (novoValorTotal, novoQtdDias, _) = PrecificacaoHelper.Calcular(preco, reserva.DataEntrada, dto.DataSaidaPrevista);
+
+        reserva.QtdDias = novoQtdDias;
         reserva.DataSaidaPrevista = dto.DataSaidaPrevista;
         reserva.ValorDiaria = preco.ValorDiaria;
-        reserva.ValorTotal = preco.ValorDiaria * dto.QtdDias;
-        reserva.ValorFinal = reserva.ValorTotal;
+        reserva.ValorTotal = novoValorTotal;
+        reserva.ValorFinal = novoValorTotal;
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
+    }
+
+    public async Task<ReservaResponseDto?> AtualizarClienteAsync(int id, AtualizarReservaClienteDto dto)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null) return null;
+
+        var telefoneInformado = NormalizarTelefone(dto.TelefoneCliente);
+        var telefoneReserva = NormalizarTelefone(reserva.TelefoneCliente);
+
+        if (string.IsNullOrEmpty(telefoneInformado) || telefoneInformado != telefoneReserva)
+            throw new InvalidOperationException("Telefone não confere com a reserva existente");
+
+        var placaInformada = dto.PlacaVeiculo.Trim().ToUpper();
+        var placaReserva = reserva.PlacaVeiculo?.Trim().ToUpper();
+
+        if (string.IsNullOrEmpty(placaReserva) || placaInformada != placaReserva)
+            throw new InvalidOperationException("Placa não confere com a reserva existente");
+
+        return await AtualizarAsync(id, new AtualizarReservaDto { DataSaidaPrevista = dto.DataSaidaPrevista });
+    }
+
+    private static string NormalizarTelefone(string telefone) =>
+        new string(telefone.Where(char.IsDigit).ToArray());
+
+    private static decimal CalcularHorasAdicionais(Reserva reserva, Preco? preco, DateTime dataCheckout)
+    {
+        if (preco == null) return 0;
+
+        var horasExtras = (dataCheckout - reserva.DataSaidaPrevista).TotalHours;
+        if (horasExtras <= 0) return 0;
+
+        if (horasExtras <= 6)
+            return preco.ValorHorasAdicionaisAte6h;
+
+        if (horasExtras <= 12)
+            return preco.ValorHorasAdicionaisAte12h;
+
+        // Acima de 12h: cobra uma diária cheia adicional
+        return preco.ValorDiaria;
     }
 
     private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias)
@@ -389,6 +439,7 @@ public class ReservaService : IReservaService
         ValorDiaria = r.ValorDiaria,
         ValorTotal = r.ValorTotal,
         DescontoAplicado = r.DescontoAplicado,
+        ValorHorasAdicionais = r.ValorHorasAdicionais,
         ValorFinal = r.ValorFinal,
         FormaPagamento = r.FormaPagamento?.ToString(),
         Pago = r.Pago,

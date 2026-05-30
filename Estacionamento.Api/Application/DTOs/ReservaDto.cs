@@ -28,8 +28,8 @@ public class CriarReservaOnlineDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
-    public int QtdDias { get; set; } = 1;
+    [Range(0, 365)]
+    public int QtdDias { get; set; } = 0;
 
     public string? Observacoes { get; set; }
 }
@@ -60,8 +60,8 @@ public class CriarReservaPresencialDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
-    public int QtdDias { get; set; } = 1;
+    [Range(0, 365)]
+    public int QtdDias { get; set; } = 0;
 
     public string? Observacoes { get; set; }
 }
@@ -81,6 +81,21 @@ public class CheckoutDto
     public string FormaPagamento { get; set; } = string.Empty;
 }
 
+// === Conflito por placa ===
+public class ConflitoPorPlacaResponseDto
+{
+    public int Id { get; set; }
+    public string PlacaVeiculo { get; set; } = string.Empty;
+    public DateTime DataEntrada { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string TipoVaga { get; set; } = string.Empty;
+    /// <summary>
+    /// False quando o carro já está com checkin realizado — não é possível alterar pelo fluxo de reserva.
+    /// </summary>
+    public bool PodeAtualizar { get; set; }
+}
+
 // === Response ===
 public class ReservaResponseDto
 {
@@ -96,6 +111,7 @@ public class ReservaResponseDto
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotal { get; set; }
     public decimal DescontoAplicado { get; set; }
+    public decimal ValorHorasAdicionais { get; set; }
     public decimal ValorFinal { get; set; }
     public string? FormaPagamento { get; set; }
     public bool Pago { get; set; }
@@ -134,8 +150,8 @@ public class CarroLoteDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
-    public int QtdDias { get; set; } = 1;
+    [Range(0, 365)]
+    public int QtdDias { get; set; } = 0;
 
     public string? Observacoes { get; set; }
 }
@@ -179,8 +195,8 @@ public class CarroPresencialLoteDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
-    public int QtdDias { get; set; } = 1;
+    [Range(0, 365)]
+    public int QtdDias { get; set; } = 0;
 
     public string? Observacoes { get; set; }
 }
@@ -204,9 +220,19 @@ public class CriarReservaLotePresencialDto
 public class AtualizarReservaDto
 {
     [Required]
-    [Range(1, 365)]
-    public int QtdDias { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
+}
 
+/// <summary>Cliente altera a própria reserva (sem JWT) — valida telefone e placa.</summary>
+public class AtualizarReservaClienteDto
+{
     [Required]
     public DateTime DataSaidaPrevista { get; set; }
+
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
+    public string TelefoneCliente { get; set; } = string.Empty;
 }

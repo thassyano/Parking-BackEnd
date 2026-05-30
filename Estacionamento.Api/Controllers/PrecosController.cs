@@ -59,7 +59,7 @@ public class PrecosController : ControllerBase
 
         try
         {
-            var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPixDinheiro, dto.DataInicio, dto.DataFim);
+            var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPixDinheiro, dto.ValorHorasAdicionaisAte6h, dto.ValorHorasAdicionaisAte12h, dto.DataInicio, dto.DataFim);
 
             await _logAtividadeService.RegistrarAsync(
                 LogAtividadeHttpExtensions.CriarRegistro(

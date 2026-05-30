@@ -14,6 +14,7 @@ public interface IReservaRepository
     Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data);
     Task<IEnumerable<Reserva>> ObterParaEnvioConfirmacaoAsync(int horasAntecedencia);
     Task<IEnumerable<Reserva>> ObterParaCancelamentoAutomaticoAsync();
+    Task<Reserva?> ObterConflitoPorPlacaAsync(string placa, DateTime dataEntrada, DateTime dataSaida, int? excludeId = null);
     Task<Reserva> CriarAsync(Reserva reserva);
     Task<Reserva> AtualizarAsync(Reserva reserva);
 }
@@ -133,6 +134,33 @@ public class ReservaRepository : IReservaRepository
                 && statusAtivos.Contains(r.Status)
                 && r.DataEntrada <= dataUtc
                 && r.DataSaidaPrevista >= dataUtc);
+    }
+
+    public async Task<Reserva?> ObterConflitoPorPlacaAsync(string placa, DateTime dataEntrada, DateTime dataSaida, int? excludeId = null)
+    {
+        var placaNorm = placa.Trim().ToUpper();
+        var entrada = ToUtc(dataEntrada);
+        var saida = ToUtc(dataSaida);
+
+        var statusAtivos = new[]
+        {
+            StatusReserva.Pendente,
+            StatusReserva.Confirmada,
+            StatusReserva.CheckinRealizado
+        };
+
+        var query = _context.Reservas
+            .Where(r => r.PlacaVeiculo != null
+                && r.PlacaVeiculo == placaNorm
+                && statusAtivos.Contains(r.Status)
+                && r.DataEntrada < saida        // existente começa antes da nova saída
+                && r.DataSaidaPrevista > entrada // existente termina depois da nova entrada
+            );
+
+        if (excludeId.HasValue)
+            query = query.Where(r => r.Id != excludeId.Value);
+
+        return await query.FirstOrDefaultAsync();
     }
 
     public async Task<Reserva> CriarAsync(Reserva reserva)
