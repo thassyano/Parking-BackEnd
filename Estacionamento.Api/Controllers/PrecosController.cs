@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 
 namespace Estacionamento.Api.Controllers;
 
@@ -11,10 +12,12 @@ namespace Estacionamento.Api.Controllers;
 public class PrecosController : ControllerBase
 {
     private readonly IPrecoService _precoService;
+    private readonly ILogAtividadeService _logAtividadeService;
 
-    public PrecosController(IPrecoService precoService)
+    public PrecosController(IPrecoService precoService, ILogAtividadeService logAtividadeService)
     {
         _precoService = precoService;
+        _logAtividadeService = logAtividadeService;
     }
 
     [HttpGet]
@@ -57,6 +60,11 @@ public class PrecosController : ControllerBase
         try
         {
             var preco = await _precoService.CriarAsync(tipo, dto.ValorDiaria, dto.DescontoPixDinheiro, dto.DataInicio, dto.DataFim);
+
+            await _logAtividadeService.RegistrarAsync(
+                LogAtividadeHttpExtensions.CriarRegistro(
+                    User, AcaoLog.PrecoCriado, $"Preço {tipo} R$ {dto.ValorDiaria}", "Preco", preco.Id));
+
             return CreatedAtAction(nameof(ObterAtivoPorTipo), new { tipoVaga = tipo.ToString() }, preco);
         }
         catch (InvalidOperationException ex)

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Estacionamento.Api.Application.DTOs;
+using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Data;
@@ -15,11 +16,16 @@ public class AdminController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ILogger<AdminController> _logger;
+    private readonly ILogAtividadeService _logAtividadeService;
 
-    public AdminController(AppDbContext context, ILogger<AdminController> logger)
+    public AdminController(
+        AppDbContext context,
+        ILogger<AdminController> logger,
+        ILogAtividadeService logAtividadeService)
     {
         _context = context;
         _logger = logger;
+        _logAtividadeService = logAtividadeService;
     }
 
     [HttpPost]
@@ -52,6 +58,10 @@ public class AdminController : ControllerBase
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Admin criado: {Usuario}", admin.Usuario);
+
+            await _logAtividadeService.RegistrarAsync(
+                LogAtividadeHttpExtensions.CriarRegistro(
+                    User, AcaoLog.AdminCriado, $"Admin '{admin.Usuario}' criado", "Admin", admin.Id));
 
             return CreatedAtAction(nameof(ObterPorId), new { id = admin.Id }, MapResponse(admin));
         }
@@ -122,6 +132,10 @@ public class AdminController : ControllerBase
 
         _logger.LogInformation("Admin atualizado: {Usuario}", admin.Usuario);
 
+        await _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.AdminAtualizado, $"Admin '{admin.Usuario}' atualizado", "Admin", admin.Id));
+
         return Ok(MapResponse(admin));
     }
 
@@ -135,6 +149,11 @@ public class AdminController : ControllerBase
 
         admin.Ativo = dto.Ativo;
         await _context.SaveChangesAsync();
+
+        var acao = dto.Ativo ? AcaoLog.AdminAtivado : AcaoLog.AdminDesativado;
+        await _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(
+                User, acao, $"Admin '{admin.Usuario}' {(dto.Ativo ? "ativado" : "desativado")}", "Admin", admin.Id));
 
         return Ok(new { message = $"Admin {(dto.Ativo ? "ativado" : "desativado")} com sucesso" });
     }
@@ -153,6 +172,10 @@ public class AdminController : ControllerBase
 
         _context.Admins.Remove(admin);
         await _context.SaveChangesAsync();
+
+        await _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.AdminExcluido, $"Admin '{admin.Usuario}' excluído", "Admin", admin.Id));
 
         return Ok(new { message = "Admin deletado com sucesso" });
     }

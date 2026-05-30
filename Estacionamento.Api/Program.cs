@@ -174,6 +174,7 @@ builder.Services.AddScoped<IDisponibilidadeService, DisponibilidadeService>();
 builder.Services.AddScoped<IOrcamentoService, OrcamentoService>();
 builder.Services.AddScoped<ICaixaService, CaixaService>();
 builder.Services.AddScoped<IWhatsAppService, WhatsAppService>();
+builder.Services.AddScoped<ILogAtividadeService, LogAtividadeService>();
 
 // HttpClient para Evolution API
 builder.Services.AddHttpClient("EvolutionApi");

@@ -1,5 +1,6 @@
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Application.Services;
@@ -27,6 +28,9 @@ public class OrcamentoService : IOrcamentoService
 
     public async Task<OrcamentoResponseDto> CalcularAsync(ConsultaOrcamentoDto dto)
     {
+        var dataSaida = dto.DataEntrada.Date.AddDays(dto.QtdDias);
+        DateTimeHelper.ValidarPeriodoReserva(dto.DataEntrada, dataSaida);
+
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
 
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)

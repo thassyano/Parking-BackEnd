@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Controllers;
@@ -14,13 +15,16 @@ public class ConfiguracaoController : ControllerBase
 {
     private readonly IConfiguracaoRepository _configuracaoRepository;
     private readonly IWhatsAppService _whatsAppService;
+    private readonly ILogAtividadeService _logAtividadeService;
 
     public ConfiguracaoController(
         IConfiguracaoRepository configuracaoRepository,
-        IWhatsAppService whatsAppService)
+        IWhatsAppService whatsAppService,
+        ILogAtividadeService logAtividadeService)
     {
         _configuracaoRepository = configuracaoRepository;
         _whatsAppService = whatsAppService;
+        _logAtividadeService = logAtividadeService;
     }
 
     [HttpGet]
@@ -56,6 +60,10 @@ public class ConfiguracaoController : ControllerBase
         if (dto.HorasAntecedenciaConfirmacao.HasValue) config.HorasAntecedenciaConfirmacao = dto.HorasAntecedenciaConfirmacao.Value;
 
         var atualizada = await _configuracaoRepository.CriarOuAtualizarAsync(config);
+
+        await _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(User, AcaoLog.ConfiguracaoAtualizada, "Configuração do estacionamento atualizada", "Configuracao", atualizada.Id));
+
         return Ok(MapToResponse(atualizada));
     }
 
@@ -73,6 +81,8 @@ public class ConfiguracaoController : ControllerBase
         var (enviado, erroEvolution) = await _whatsAppService.EnviarMensagemTesteAsync(dto.TelefoneCliente, config);
         if (!enviado)
         {
+            await _logAtividadeService.RegistrarAsync(
+                LogAtividadeHttpExtensions.CriarRegistro(User, AcaoLog.ConfiguracaoTesteEvolution, $"Teste Evolution falhou: {dto.TelefoneCliente}", "Configuracao", config.Id, sucesso: false));
             return BadRequest(new
             {
                 message = "Não foi possível enviar. Verifique instância conectada, nome da instância e número de destino (com DDI 55).",
@@ -81,6 +91,9 @@ public class ConfiguracaoController : ControllerBase
                 instanceName = config.EvolutionInstanceName
             });
         }
+
+        await _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(User, AcaoLog.ConfiguracaoTesteEvolution, $"Teste Evolution enviado para {dto.TelefoneCliente}", "Configuracao", config.Id));
 
         return Ok(new { message = "Mensagem de teste enviada. Verifique o WhatsApp do número informado." });
     }

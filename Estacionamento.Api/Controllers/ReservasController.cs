@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Controllers;
@@ -14,12 +15,18 @@ public class ReservasController : ControllerBase
     private readonly IReservaService _reservaService;
     private readonly IWhatsAppService _whatsAppService;
     private readonly IReservaRepository _reservaRepository;
+    private readonly ILogAtividadeService _logAtividadeService;
 
-    public ReservasController(IReservaService reservaService, IWhatsAppService whatsAppService, IReservaRepository reservaRepository)
+    public ReservasController(
+        IReservaService reservaService,
+        IWhatsAppService whatsAppService,
+        IReservaRepository reservaRepository,
+        ILogAtividadeService logAtividadeService)
     {
         _reservaService = reservaService;
         _whatsAppService = whatsAppService;
         _reservaRepository = reservaRepository;
+        _logAtividadeService = logAtividadeService;
     }
 
     /// <summary>Listar reservas (com filtros opcionais)</summary>
@@ -64,6 +71,7 @@ public class ReservasController : ControllerBase
         try
         {
             var reserva = await _reservaService.CriarOnlineAsync(dto);
+            await RegistrarLogAsync(AcaoLog.ReservaOnline, $"Reserva #{reserva.Id} online — {dto.NomeCliente}", "Reserva", reserva.Id, origem: OrigemLog.Cliente);
             return CreatedAtAction(nameof(ObterPorId), new { id = reserva.Id }, reserva);
         }
         catch (InvalidOperationException ex)
@@ -82,6 +90,11 @@ public class ReservasController : ControllerBase
         try
         {
             var resultado = await _reservaService.CriarOnlineLoteAsync(dto);
+            await RegistrarLogAsync(
+                AcaoLog.ReservaOnline,
+                $"{resultado.Reservas.Count} reserva(s) online — {dto.NomeCliente}",
+                "Reserva",
+                origem: OrigemLog.Cliente);
             return Ok(resultado);
         }
         catch (InvalidOperationException ex)
@@ -101,6 +114,7 @@ public class ReservasController : ControllerBase
         try
         {
             var reserva = await _reservaService.CriarPresencialAsync(dto);
+            await RegistrarLogAsync(AcaoLog.ReservaPresencial, $"Reserva #{reserva.Id} presencial — {dto.NomeCliente}", "Reserva", reserva.Id);
             return CreatedAtAction(nameof(ObterPorId), new { id = reserva.Id }, reserva);
         }
         catch (InvalidOperationException ex)
@@ -120,6 +134,10 @@ public class ReservasController : ControllerBase
         try
         {
             var resultado = await _reservaService.CriarPresencialLoteAsync(dto);
+            await RegistrarLogAsync(
+                AcaoLog.ReservaPresencial,
+                $"{resultado.Reservas.Count} reserva(s) presencial — {dto.NomeCliente}",
+                "Reserva");
             return Ok(resultado);
         }
         catch (InvalidOperationException ex)
@@ -142,6 +160,7 @@ public class ReservasController : ControllerBase
             if (reserva == null)
                 return NotFound(new { message = "Reserva não encontrada" });
 
+            await RegistrarLogAsync(AcaoLog.ReservaAlterada, $"Reserva #{id} alterada", "Reserva", id);
             return Ok(reserva);
         }
         catch (InvalidOperationException ex)
@@ -162,6 +181,7 @@ public class ReservasController : ControllerBase
         if (reserva == null)
             return NotFound(new { message = "Reserva não encontrada" });
 
+        await RegistrarLogAsync(AcaoLog.ReservaPlacaAssociada, $"Placa {dto.PlacaVeiculo} associada à reserva #{id}", "Reserva", id);
         return Ok(reserva);
     }
 
@@ -176,6 +196,7 @@ public class ReservasController : ControllerBase
             if (reserva == null)
                 return NotFound(new { message = "Reserva não encontrada" });
 
+            await RegistrarLogAsync(AcaoLog.ReservaCheckin, $"Check-in reserva #{id}", "Reserva", id);
             return Ok(reserva);
         }
         catch (InvalidOperationException ex)
@@ -198,6 +219,7 @@ public class ReservasController : ControllerBase
             if (reserva == null)
                 return NotFound(new { message = "Reserva não encontrada" });
 
+            await RegistrarLogAsync(AcaoLog.ReservaCheckout, $"Check-out reserva #{id} — {dto.FormaPagamento}", "Reserva", id);
             return Ok(reserva);
         }
         catch (InvalidOperationException ex)
@@ -217,6 +239,7 @@ public class ReservasController : ControllerBase
             if (reserva == null)
                 return NotFound(new { message = "Reserva não encontrada" });
 
+            await RegistrarLogAsync(AcaoLog.ReservaCancelada, $"Reserva #{id} cancelada", "Reserva", id);
             return Ok(reserva);
         }
         catch (InvalidOperationException ex)
@@ -285,6 +308,15 @@ public class ReservasController : ControllerBase
                 reserva.Status = StatusReserva.Confirmada;
 
             await _reservaRepository.AtualizarAsync(reserva);
+
+            await _logAtividadeService.RegistrarAsync(new RegistrarLogAtividadeDto
+            {
+                Acao = AcaoLog.ReservaConfirmadaCliente,
+                Detalhes = $"Reserva #{reserva.Id} confirmada pelo cliente {reserva.NomeCliente}",
+                Entidade = "Reserva",
+                EntidadeId = reserva.Id,
+                Origem = OrigemLog.Cliente
+            });
         }
 
         return Ok(new
@@ -316,4 +348,14 @@ public class ReservasController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    private Task RegistrarLogAsync(
+        string acao,
+        string detalhes,
+        string? entidade = null,
+        int? entidadeId = null,
+        bool sucesso = true,
+        string origem = OrigemLog.Admin) =>
+        _logAtividadeService.RegistrarAsync(
+            LogAtividadeHttpExtensions.CriarRegistro(User, acao, detalhes, entidade, entidadeId, sucesso, origem));
 }

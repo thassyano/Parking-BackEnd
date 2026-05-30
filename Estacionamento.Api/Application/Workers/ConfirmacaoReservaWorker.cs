@@ -62,13 +62,14 @@ public class ConfirmacaoReservaWorker : BackgroundService
             return;
         }
 
-        await CancelarNaoConfirmadasAsync(services.ReservaRepo);
-        await EnviarNotificacoesAsync(services.ReservaRepo, services.WhatsAppService, config);
+        await CancelarNaoConfirmadasAsync(services.ReservaRepo, services.LogAtividadeService);
+        await EnviarNotificacoesAsync(services.ReservaRepo, services.WhatsAppService, services.LogAtividadeService, config);
     }
 
     private async Task EnviarNotificacoesAsync(
         IReservaRepository reservaRepo,
         IWhatsAppService whatsAppService,
+        ILogAtividadeService logAtividadeService,
         ConfiguracaoEstacionamento config)
     {
         var horasAntecedencia = config.HorasAntecedenciaConfirmacao > 0
@@ -81,13 +82,14 @@ public class ConfirmacaoReservaWorker : BackgroundService
         _logger.LogInformation("{count} reserva(s) para notificar.", reservas.Count);
 
         foreach (var reserva in reservas)
-            await NotificarReservaAsync(reserva, reservaRepo, whatsAppService, config);
+            await NotificarReservaAsync(reserva, reservaRepo, whatsAppService, logAtividadeService, config);
     }
 
     private async Task NotificarReservaAsync(
         Reserva reserva,
         IReservaRepository reservaRepo,
         IWhatsAppService whatsAppService,
+        ILogAtividadeService logAtividadeService,
         ConfiguracaoEstacionamento config)
     {
         try
@@ -100,12 +102,23 @@ public class ConfirmacaoReservaWorker : BackgroundService
                 reserva.DataEnvioConfirmacao = DateTimeHelper.AgoraBrasilia();
                 await reservaRepo.AtualizarAsync(reserva);
                 _logger.LogInformation("Mensagem enviada: reserva {Id} ({Nome}).", reserva.Id, reserva.NomeCliente);
+                await logAtividadeService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                    AcaoLog.WorkerWhatsAppEnviado,
+                    $"WhatsApp confirmação enviado — reserva #{reserva.Id} ({reserva.NomeCliente})",
+                    "Reserva",
+                    reserva.Id));
             }
             else
             {
                 _logger.LogWarning(
                     "Mensagem NÃO enviada para reserva {Id}. Verifique Evolution (container, instância conectada e configuração).",
                     reserva.Id);
+                await logAtividadeService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                    AcaoLog.WorkerWhatsAppFalha,
+                    $"Falha ao enviar WhatsApp — reserva #{reserva.Id}",
+                    "Reserva",
+                    reserva.Id,
+                    sucesso: false));
             }
         }
         catch (Exception ex)
@@ -114,7 +127,7 @@ public class ConfirmacaoReservaWorker : BackgroundService
         }
     }
 
-    private async Task CancelarNaoConfirmadasAsync(IReservaRepository reservaRepo)
+    private async Task CancelarNaoConfirmadasAsync(IReservaRepository reservaRepo, ILogAtividadeService logAtividadeService)
     {
         var reservas = (await reservaRepo.ObterParaCancelamentoAutomaticoAsync()).ToList();
         if (reservas.Count == 0) return;
@@ -122,10 +135,10 @@ public class ConfirmacaoReservaWorker : BackgroundService
         _logger.LogInformation("{count} reserva(s) para cancelamento automático.", reservas.Count);
 
         foreach (var reserva in reservas)
-            await CancelarReservaAsync(reserva, reservaRepo);
+            await CancelarReservaAsync(reserva, reservaRepo, logAtividadeService);
     }
 
-    private async Task CancelarReservaAsync(Reserva reserva, IReservaRepository reservaRepo)
+    private async Task CancelarReservaAsync(Reserva reserva, IReservaRepository reservaRepo, ILogAtividadeService logAtividadeService)
     {
         try
         {
@@ -136,6 +149,11 @@ public class ConfirmacaoReservaWorker : BackgroundService
 
             await reservaRepo.AtualizarAsync(reserva);
             _logger.LogInformation("Reserva {Id} cancelada automaticamente.", reserva.Id);
+            await logAtividadeService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                AcaoLog.WorkerCancelamentoAutomatico,
+                $"Reserva #{reserva.Id} cancelada automaticamente (sem confirmação WhatsApp)",
+                "Reserva",
+                reserva.Id));
         }
         catch (Exception ex)
         {
@@ -143,11 +161,12 @@ public class ConfirmacaoReservaWorker : BackgroundService
         }
     }
 
-    private static (IReservaRepository ReservaRepo, IConfiguracaoRepository ConfiguracaoRepo, IWhatsAppService WhatsAppService)
+    private static (IReservaRepository ReservaRepo, IConfiguracaoRepository ConfiguracaoRepo, IWhatsAppService WhatsAppService, ILogAtividadeService LogAtividadeService)
         ResolverServicos(IServiceScope scope) =>
     (
         scope.ServiceProvider.GetRequiredService<IReservaRepository>(),
         scope.ServiceProvider.GetRequiredService<IConfiguracaoRepository>(),
-        scope.ServiceProvider.GetRequiredService<IWhatsAppService>()
+        scope.ServiceProvider.GetRequiredService<IWhatsAppService>(),
+        scope.ServiceProvider.GetRequiredService<ILogAtividadeService>()
     );
 }
