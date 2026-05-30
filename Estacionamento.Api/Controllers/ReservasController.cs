@@ -61,6 +61,33 @@ public class ReservasController : ControllerBase
         return Ok(reserva);
     }
 
+    /// <summary>Verifica se uma placa já possui reserva ativa no período informado</summary>
+    [HttpGet("conflito")]
+    public async Task<IActionResult> VerificarConflito(
+        [FromQuery] string placa,
+        [FromQuery] DateTime dataEntrada,
+        [FromQuery] DateTime dataSaidaPrevista)
+    {
+        if (string.IsNullOrWhiteSpace(placa))
+            return BadRequest(new { message = "Placa é obrigatória" });
+
+        var conflito = await _reservaRepository.ObterConflitoPorPlacaAsync(placa, dataEntrada, dataSaidaPrevista);
+
+        if (conflito == null)
+            return NotFound();
+
+        return Ok(new ConflitoPorPlacaResponseDto
+        {
+            Id = conflito.Id,
+            PlacaVeiculo = conflito.PlacaVeiculo ?? placa.ToUpper(),
+            DataEntrada = conflito.DataEntrada,
+            DataSaidaPrevista = conflito.DataSaidaPrevista,
+            Status = conflito.Status.ToString(),
+            TipoVaga = conflito.TipoVaga.ToString(),
+            PodeAtualizar = conflito.Status == StatusReserva.Pendente || conflito.Status == StatusReserva.Confirmada
+        });
+    }
+
     /// <summary>FLUXO ONLINE - Cliente reserva pelo site (sem placa)</summary>
     [HttpPost("online")]
     public async Task<IActionResult> CriarOnline([FromBody] CriarReservaOnlineDto dto)
@@ -146,7 +173,34 @@ public class ReservasController : ControllerBase
         }
     }
 
-    /// <summary>Alterar duração da reserva e recalcular valor (apenas Pendente/Confirmada)</summary>
+    /// <summary>Cliente altera a própria reserva online (valida telefone + placa, sem autenticação)</summary>
+    [HttpPatch("{id}/alterar-cliente")]
+    public async Task<IActionResult> AlterarCliente(int id, [FromBody] AtualizarReservaClienteDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var reserva = await _reservaService.AtualizarClienteAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await RegistrarLogAsync(
+                AcaoLog.ReservaAlterada,
+                $"Reserva #{id} alterada pelo cliente ({dto.PlacaVeiculo})",
+                "Reserva",
+                id,
+                origem: OrigemLog.Cliente);
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Admin altera duração da reserva e recalcular valor (apenas Pendente/Confirmada)</summary>
     [HttpPatch("{id}/alterar")]
     [Authorize]
     public async Task<IActionResult> Alterar(int id, [FromBody] AtualizarReservaDto dto)
@@ -329,6 +383,39 @@ public class ReservasController : ControllerBase
             tipoVaga = reserva.TipoVaga.ToString(),
             placa = reserva.PlacaVeiculo
         });
+    }
+
+    /// <summary>Gerar link WhatsApp após cliente alterar reserva existente</summary>
+    [HttpGet("{id}/whatsapp-alteracao")]
+    public async Task<IActionResult> GerarLinkWhatsAppAlteracao(int id)
+    {
+        try
+        {
+            var resultado = await _whatsAppService.GerarLinkAlteracaoAsync(id);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Gerar link WhatsApp consolidado após alteração de múltiplas reservas</summary>
+    [HttpPost("whatsapp/lote-alteracao")]
+    public async Task<IActionResult> GerarLinkWhatsAppAlteracaoLote([FromBody] List<int> reservaIds)
+    {
+        if (reservaIds == null || reservaIds.Count == 0)
+            return BadRequest(new { message = "Informe pelo menos um ID de reserva" });
+
+        try
+        {
+            var resultado = await _whatsAppService.GerarLinkAlteracaoLoteAsync(reservaIds);
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>Gerar link WhatsApp consolidado para múltiplas reservas</summary>

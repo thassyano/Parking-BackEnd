@@ -2,6 +2,7 @@ using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
+using static Estacionamento.Api.Helpers.PrecificacaoHelper;
 
 namespace Estacionamento.Api.Application.Services;
 
@@ -28,8 +29,7 @@ public class OrcamentoService : IOrcamentoService
 
     public async Task<OrcamentoResponseDto> CalcularAsync(ConsultaOrcamentoDto dto)
     {
-        var dataSaida = dto.DataEntrada.Date.AddDays(dto.QtdDias);
-        DateTimeHelper.ValidarPeriodoReserva(dto.DataEntrada, dataSaida);
+        DateTimeHelper.ValidarPeriodoReserva(dto.DataEntrada, dto.DataSaidaPrevista);
 
         var tipoVaga = Enum.Parse<TipoVaga>(dto.TipoVaga, true);
 
@@ -42,18 +42,21 @@ public class OrcamentoService : IOrcamentoService
 
         var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, dto.DataEntrada.Date);
 
-        var valorCartao = preco.ValorDiaria * dto.QtdDias;
-        var descontoTotal = preco.DescontoPixDinheiro * dto.QtdDias;
-        var valorPixDinheiro = valorCartao - descontoTotal;
+        var (valorBase, qtdDias, tipoPrecificacao) = PrecificacaoHelper.Calcular(preco, dto.DataEntrada, dto.DataSaidaPrevista);
+
+        // Desconto Pix/Dinheiro só se aplica sobre diárias cheias
+        var descontoTotal = preco.DescontoPixDinheiro * qtdDias;
+        var valorPixDinheiro = valorBase - descontoTotal;
 
         return new OrcamentoResponseDto
         {
             TipoVaga = tipoVaga.ToString(),
-            DataEntrada = dto.DataEntrada.Date,
-            QtdDias = dto.QtdDias,
-            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
+            DataEntrada = dto.DataEntrada,
+            QtdDias = qtdDias,
+            DataSaidaPrevista = dto.DataSaidaPrevista,
+            TipoPrecificacao = tipoPrecificacao.ToString(),
             ValorDiaria = preco.ValorDiaria,
-            ValorTotalCartao = valorCartao,
+            ValorTotalCartao = valorBase,
             ValorTotalPixDinheiro = valorPixDinheiro,
             DescontoPixDinheiroPorDia = preco.DescontoPixDinheiro,
             EconomiaTotal = descontoTotal,

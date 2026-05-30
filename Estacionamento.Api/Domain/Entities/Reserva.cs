@@ -44,6 +44,7 @@ public class Reserva
     public decimal ValorDiaria { get; set; }
     public decimal ValorTotal { get; set; }
     public decimal DescontoAplicado { get; set; }
+    public decimal ValorHorasAdicionais { get; set; } // cobrado na saída se ultrapassar DataSaidaPrevista
     public decimal ValorFinal { get; set; }
 
     // Pagamento (na saída)

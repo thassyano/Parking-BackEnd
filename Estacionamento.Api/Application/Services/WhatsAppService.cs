@@ -10,6 +10,8 @@ public interface IWhatsAppService
 {
     Task<WhatsAppRedirectDto> GerarLinkAsync(int reservaId);
     Task<WhatsAppRedirectDto> GerarLinkLoteAsync(List<int> reservaIds);
+    Task<WhatsAppRedirectDto> GerarLinkAlteracaoAsync(int reservaId);
+    Task<WhatsAppRedirectDto> GerarLinkAlteracaoLoteAsync(List<int> reservaIds);
     Task<bool> EnviarConfirmacaoViaEvolutionAsync(Reserva reserva, ConfiguracaoEstacionamento config);
     Task<(bool Sucesso, string? Erro)> EnviarMensagemTesteAsync(string telefoneCliente, ConfiguracaoEstacionamento config);
 }
@@ -155,56 +157,28 @@ public class WhatsAppService : IWhatsAppService
         return null;
     }
 
+    private const string TemplateReservaPadrao =
+        "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nHorário saída: {horarioSaida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\nValor total: R$ {valorTotal}";
+
+    private const string TemplateAlteracaoPadrao =
+        "Olá! *Alterei* minha reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\n*Nova saída prevista:* {saida}\nHorário saída: {horarioSaida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\nValor total: R$ {valorTotal}";
+
     public async Task<WhatsAppRedirectDto> GerarLinkAsync(int reservaId)
     {
         var reserva = await _reservaRepository.ObterPorIdAsync(reservaId)
             ?? throw new InvalidOperationException("Reserva não encontrada");
 
-        var config = await _configuracaoRepository.ObterAsync()
-            ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada");
+        var config = await ObterConfigComWhatsAppAsync();
+        var template = config.MensagemWhatsApp ?? TemplateReservaPadrao;
+        var mensagem = AplicarTemplate(reserva, template);
 
-        if (string.IsNullOrEmpty(config.TelefoneWhatsApp))
-            throw new InvalidOperationException("Telefone WhatsApp não configurado");
-
-        var template = config.MensagemWhatsApp
-            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}";
-
-        var mensagem = template
-            .Replace("{id}", reserva.Id.ToString())
-            .Replace("{nome}", reserva.NomeCliente)
-            .Replace("{placa}", reserva.PlacaVeiculo)
-            .Replace("{entrada}", reserva.DataEntrada.ToString("dd/MM/yyyy"))
-            .Replace("{horarioEntrada}", reserva.DataEntrada.ToShortTimeString())
-            .Replace("{saida}", reserva.DataSaidaPrevista.ToString("dd/MM/yyyy"))
-            .Replace("{tipo}", reserva.TipoVaga.ToString())
-            .Replace("{dias}", reserva.QtdDias.ToString())
-            .Replace("{valorDiaria}", reserva.ValorDiaria.ToString("N2"))
-            .Replace("{valorTotal}", reserva.ValorTotal.ToString("N2"));
-
-        var telefoneFormatado = config.TelefoneWhatsApp
-            .Replace(" ", "").Replace("-", "")
-            .Replace("(", "").Replace(")", "").Replace("+", "");
-
-        var url = $"https://wa.me/{telefoneFormatado}?text={Uri.EscapeDataString(mensagem)}";
-
-        return new WhatsAppRedirectDto
-        {
-            Url = url,
-            Mensagem = mensagem,
-            TelefoneEstacionamento = config.TelefoneWhatsApp
-        };
+        return CriarRedirect(config, mensagem);
     }
 
     public async Task<WhatsAppRedirectDto> GerarLinkLoteAsync(List<int> reservaIds)
     {
-        var config = await _configuracaoRepository.ObterAsync()
-            ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada");
-
-        if (string.IsNullOrEmpty(config.TelefoneWhatsApp))
-            throw new InvalidOperationException("Telefone WhatsApp não configurado");
-
-        var template = config.MensagemWhatsApp
-            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}";
+        var config = await ObterConfigComWhatsAppAsync();
+        var template = config.MensagemWhatsApp ?? TemplateReservaPadrao;
 
         var blocos = new List<string>();
         decimal valorTotalGeral = 0;
@@ -217,27 +191,80 @@ public class WhatsAppService : IWhatsAppService
 
             if (i == 0) nomeCliente = reserva.NomeCliente;
             valorTotalGeral += reserva.ValorTotal;
-
-            var bloco = template
-                .Replace("{id}", reserva.Id.ToString())
-                .Replace("{nome}", reserva.NomeCliente)
-                .Replace("{placa}", reserva.PlacaVeiculo ?? "-")
-                .Replace("{entrada}", reserva.DataEntrada.ToString("dd/MM/yyyy"))
-                .Replace("{horarioEntrada}", reserva.DataEntrada.ToShortTimeString())
-                .Replace("{saida}", reserva.DataSaidaPrevista.ToString("dd/MM/yyyy"))
-                .Replace("{tipo}", reserva.TipoVaga.ToString())
-                .Replace("{dias}", reserva.QtdDias.ToString())
-                .Replace("{valorDiaria}", reserva.ValorDiaria.ToString("N2"))
-                .Replace("{valorTotal}", reserva.ValorTotal.ToString("N2"));
-
-            blocos.Add($"🚗 Veículo {i + 1}\n{bloco}");
+            blocos.Add($"🚗 Veículo {i + 1}\n{AplicarTemplate(reserva, template)}");
         }
 
         var cabecalho = $"Olá! Fiz uma reserva para {reservaIds.Count} veículos.\nNome: {nomeCliente}\n";
         var rodape = $"\n💰 Valor total geral: R$ {valorTotalGeral:N2}";
         var mensagem = cabecalho + "\n" + string.Join("\n\n---\n\n", blocos) + rodape;
 
-        var telefoneFormatado = config.TelefoneWhatsApp
+        return CriarRedirect(config, mensagem);
+    }
+
+    public async Task<WhatsAppRedirectDto> GerarLinkAlteracaoAsync(int reservaId)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(reservaId)
+            ?? throw new InvalidOperationException("Reserva não encontrada");
+
+        var config = await ObterConfigComWhatsAppAsync();
+        var mensagem = AplicarTemplate(reserva, TemplateAlteracaoPadrao);
+
+        return CriarRedirect(config, mensagem);
+    }
+
+    public async Task<WhatsAppRedirectDto> GerarLinkAlteracaoLoteAsync(List<int> reservaIds)
+    {
+        var config = await ObterConfigComWhatsAppAsync();
+
+        var blocos = new List<string>();
+        decimal valorTotalGeral = 0;
+        string nomeCliente = "";
+
+        for (int i = 0; i < reservaIds.Count; i++)
+        {
+            var reserva = await _reservaRepository.ObterPorIdAsync(reservaIds[i])
+                ?? throw new InvalidOperationException($"Reserva {reservaIds[i]} não encontrada");
+
+            if (i == 0) nomeCliente = reserva.NomeCliente;
+            valorTotalGeral += reserva.ValorTotal;
+            blocos.Add($"🚗 Veículo {i + 1}\n{AplicarTemplate(reserva, TemplateAlteracaoPadrao)}");
+        }
+
+        var cabecalho = $"Olá! *Alterei* minhas reservas ({reservaIds.Count} veículos).\nNome: {nomeCliente}\n";
+        var rodape = $"\n💰 Valor total geral: R$ {valorTotalGeral:N2}";
+        var mensagem = cabecalho + "\n" + string.Join("\n\n---\n\n", blocos) + rodape;
+
+        return CriarRedirect(config, mensagem);
+    }
+
+    private async Task<ConfiguracaoEstacionamento> ObterConfigComWhatsAppAsync()
+    {
+        var config = await _configuracaoRepository.ObterAsync()
+            ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada");
+
+        if (string.IsNullOrEmpty(config.TelefoneWhatsApp))
+            throw new InvalidOperationException("Telefone WhatsApp não configurado");
+
+        return config;
+    }
+
+    private static string AplicarTemplate(Reserva reserva, string template) =>
+        template
+            .Replace("{id}", reserva.Id.ToString())
+            .Replace("{nome}", reserva.NomeCliente)
+            .Replace("{placa}", reserva.PlacaVeiculo ?? "-")
+            .Replace("{entrada}", reserva.DataEntrada.ToString("dd/MM/yyyy"))
+            .Replace("{horarioEntrada}", reserva.DataEntrada.ToString("HH:mm"))
+            .Replace("{saida}", reserva.DataSaidaPrevista.ToString("dd/MM/yyyy"))
+            .Replace("{horarioSaida}", reserva.DataSaidaPrevista.ToString("HH:mm"))
+            .Replace("{tipo}", reserva.TipoVaga.ToString())
+            .Replace("{dias}", reserva.QtdDias.ToString())
+            .Replace("{valorDiaria}", reserva.ValorDiaria.ToString("N2"))
+            .Replace("{valorTotal}", reserva.ValorTotal.ToString("N2"));
+
+    private static WhatsAppRedirectDto CriarRedirect(ConfiguracaoEstacionamento config, string mensagem)
+    {
+        var telefoneFormatado = config.TelefoneWhatsApp!
             .Replace(" ", "").Replace("-", "")
             .Replace("(", "").Replace(")", "").Replace("+", "");
 
@@ -247,7 +274,7 @@ public class WhatsAppService : IWhatsAppService
         {
             Url = url,
             Mensagem = mensagem,
-            TelefoneEstacionamento = config.TelefoneWhatsApp
+            TelefoneEstacionamento = config.TelefoneWhatsApp!
         };
     }
 }
