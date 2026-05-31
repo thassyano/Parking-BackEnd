@@ -107,8 +107,10 @@ else
     Console.WriteLine($"Connection string configurada (tamanho: {finalConnectionString.Length})");
 }
 
-// JWT
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "EstacionamentoSecretKey12345678901234567890";
+// JWT — valor deve vir de variável de ambiente Jwt__Key (Railway/prod) ou appsettings.json local
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? Environment.GetEnvironmentVariable("Jwt__Key")
+    ?? throw new InvalidOperationException("JWT Key não configurada. Defina Jwt:Key no appsettings ou na variável de ambiente Jwt__Key.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EstacionamentoApi";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EstacionamentoApi";
 
