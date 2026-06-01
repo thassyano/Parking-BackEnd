@@ -258,7 +258,12 @@ public class ReservaService : IReservaService
         if (formaPagamento == FormaPagamento.Pix || formaPagamento == FormaPagamento.Dinheiro)
         {
             var descontoPorDia = preco?.DescontoPixDinheiro ?? 0;
-            desconto = descontoPorDia * reserva.QtdDias;
+            if (descontoPorDia > 0 && preco != null)
+            {
+                // Recalcula qtdDias a partir das datas reais — não depende do valor armazenado
+                var (_, qtdDiasEfetivo, _) = PrecificacaoHelper.Calcular(preco, reserva.DataEntrada, reserva.DataSaidaPrevista);
+                desconto = descontoPorDia * qtdDiasEfetivo;
+            }
         }
 
         // Calcula horas adicionais se o veículo saiu após DataSaidaPrevista
