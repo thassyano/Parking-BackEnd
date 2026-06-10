@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: estacionamento-api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:$PORT
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: EstacionamentoApi
+      - key: Jwt__Audience
+        value: EstacionamentoApi
+      - key: Cors__AllowedOrigins
+        sync: false
+

@@ -1,0 +1,4 @@
+GoPray#2026==>REMOVED
+GoPray%232026==>REMOVED
+EstacionamentoSecretKey12345678901234567890==>REMOVED
+db.okryvttuioixkmowspye.supabase.co==>REMOVED
