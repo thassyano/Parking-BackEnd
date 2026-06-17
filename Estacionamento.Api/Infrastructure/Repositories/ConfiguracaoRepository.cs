@@ -42,6 +42,10 @@ public class ConfiguracaoRepository : IConfiguracaoRepository
             existente.TotalVagasDescoberta = config.TotalVagasDescoberta;
             existente.TelefoneWhatsApp = config.TelefoneWhatsApp;
             existente.MensagemWhatsApp = config.MensagemWhatsApp;
+            existente.EvolutionApiUrl = config.EvolutionApiUrl;
+            existente.EvolutionApiKey = config.EvolutionApiKey;
+            existente.EvolutionInstanceName = config.EvolutionInstanceName;
+            existente.UrlConfirmacaoFrontend = config.UrlConfirmacaoFrontend;
             existente.HorasAntecedenciaConfirmacao = config.HorasAntecedenciaConfirmacao;
             existente.DataAtualizacao = DateTimeHelper.AgoraBrasilia();
         }

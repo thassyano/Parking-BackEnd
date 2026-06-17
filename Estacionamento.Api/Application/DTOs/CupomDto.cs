@@ -28,6 +28,7 @@ public class CupomSaidaDto
     public int Numero { get; set; }
     public string PlacaVeiculo { get; set; } = string.Empty;
     public DateTime DataHoraEntrada { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
     public DateTime DataHoraSaida { get; set; }
     public string TipoVaga { get; set; } = string.Empty;
     public int QtdDias { get; set; }

@@ -9,12 +9,13 @@ public class CriarReservaOnlineDto
     public string NomeCliente { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [MaxLength(10, ErrorMessage = "Placa do automóvel deve ter no máximo 10 caracteres")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -40,12 +41,13 @@ public class CriarReservaPresencialDto
     public string NomeCliente { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(11, ErrorMessage = "Telefone deve ter no máximo 11 caracteres")]
     public string TelefoneCliente { get; set; } = string.Empty;
 
     public string? CpfCliente { get; set; }
 
     [Required(ErrorMessage = "A placa é obrigatória")]
-    [MaxLength(10)]
+    [MaxLength(10, ErrorMessage = "Placa do veículo deve ter no máximo 10 caracteres")]
     public string PlacaVeiculo { get; set; } = string.Empty;
 
     [Required]
@@ -62,6 +64,11 @@ public class CriarReservaPresencialDto
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
+
+    /// <summary>
+    /// Quando true, a reserva é criada como Pendente (sem check-in imediato).
+    /// </summary>
+    public bool ReservaFutura { get; set; } = false;
 }
 
 // === Associar placa quando online chega ===
@@ -103,6 +110,9 @@ public class ReservaResponseDto
     public DateTime? DataCheckout { get; set; }
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; }
+    public bool ConfirmadaPeloCliente { get; set; }
+    public bool MensagemConfirmacaoEnviada { get; set; }
+    public DateTime? DataEnvioConfirmacao { get; set; }
 }
 
 public class FiltroReservaDto
@@ -111,6 +121,7 @@ public class FiltroReservaDto
     public DateTime? DataFim { get; set; }
     public string? Status { get; set; }
     public string? TipoVaga { get; set; }
+    public string? PlacaVeiculo { get; set; }
 }
 
 // === FLUXO ONLINE EM LOTE (múltiplos veículos) ===

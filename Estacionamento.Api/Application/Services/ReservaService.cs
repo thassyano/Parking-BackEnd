@@ -133,8 +133,8 @@ public class ReservaService : IReservaService
             ValorTotal = valorTotal,
             ValorFinal = valorTotal,
             Origem = OrigemReserva.Presencial,
-            Status = StatusReserva.CheckinRealizado,
-            DataCheckin = DateTimeHelper.AgoraBrasilia(),
+            Status = dto.ReservaFutura ? StatusReserva.Pendente : StatusReserva.CheckinRealizado,
+            DataCheckin = dto.ReservaFutura ? null : DateTimeHelper.AgoraBrasilia(),
             Observacoes = dto.Observacoes
         };
 
@@ -203,7 +203,7 @@ public class ReservaService : IReservaService
             tipoVaga = Enum.Parse<TipoVaga>(filtro.TipoVaga, true);
 
         var reservas = await _reservaRepository.ObterFiltradoAsync(
-            filtro.DataInicio, filtro.DataFim, status, tipoVaga);
+            filtro.DataInicio, filtro.DataFim, status, tipoVaga, filtro.PlacaVeiculo);
 
         return reservas.Select(MapToResponse);
     }
@@ -321,6 +321,7 @@ public class ReservaService : IReservaService
             Numero = reserva.Id,
             PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
             DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
+            DataSaidaPrevista = reserva.DataSaidaPrevista,
             DataHoraSaida = reserva.DataCheckout ?? DateTimeHelper.AgoraBrasilia(),
             TipoVaga = reserva.TipoVaga.ToString(),
             QtdDias = reserva.QtdDias,
@@ -373,6 +374,9 @@ public class ReservaService : IReservaService
         DataCheckin = r.DataCheckin,
         DataCheckout = r.DataCheckout,
         Observacoes = r.Observacoes,
-        DataCriacao = r.DataCriacao
+        DataCriacao = r.DataCriacao,
+        ConfirmadaPeloCliente = r.ConfirmadaPeloCliente,
+        MensagemConfirmacaoEnviada = r.MensagemConfirmacaoEnviada,
+        DataEnvioConfirmacao = r.DataEnvioConfirmacao
     };
 }
