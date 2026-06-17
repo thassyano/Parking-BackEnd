@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Preco> Precos { get; set; }
     public DbSet<Reserva> Reservas { get; set; }
     public DbSet<ConfiguracaoEstacionamento> Configuracoes { get; set; }
+    public DbSet<LogAtividade> LogsAtividade { get; set; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -79,6 +80,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EvolutionApiKey).HasMaxLength(200);
             entity.Property(e => e.EvolutionInstanceName).HasMaxLength(100);
             entity.Property(e => e.UrlConfirmacaoFrontend).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<LogAtividade>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AdminUsuario).HasMaxLength(50);
+            entity.Property(e => e.Acao).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Entidade).HasMaxLength(50);
+            entity.Property(e => e.Detalhes).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Origem).IsRequired().HasMaxLength(30);
+            entity.HasIndex(e => e.DataHora);
+            entity.HasIndex(e => e.Acao);
         });
     }
 }
