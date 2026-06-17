@@ -134,10 +134,12 @@ public class ReservaRepository : IReservaRepository
             StatusReserva.CheckinRealizado
         };
 
+        var fimDoDia = dataUtc.AddDays(1);
+
         return await _context.Reservas
             .CountAsync(r => r.TipoVaga == tipoVaga
                 && statusAtivos.Contains(r.Status)
-                && r.DataEntrada <= dataUtc
+                && r.DataEntrada < fimDoDia
                 && r.DataSaidaPrevista >= dataUtc);
     }
 
