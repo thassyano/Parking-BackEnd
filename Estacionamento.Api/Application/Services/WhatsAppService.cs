@@ -56,6 +56,7 @@ public class WhatsAppService : IWhatsAppService
             $"📆 Dias: {reserva.QtdDias}\n\n" +
             $"✅ *Para CONFIRMAR sua reserva, clique aqui:*\n{linkConfirmacao}\n\n" +
             $"⚠️ Se não confirmar antes da data de entrada, a reserva será cancelada automaticamente.\n\n" +
+            $"📍 Localização: https://maps.app.goo.gl/NKGxJoH1GgiaJHDE9\n\n" +
             $"Dúvidas? {config.TelefoneWhatsApp ?? ""}";
 
         var payload = new { number = telefone, text = mensagem };
@@ -101,7 +102,7 @@ public class WhatsAppService : IWhatsAppService
             throw new InvalidOperationException("Telefone WhatsApp não configurado");
 
         var template = config.MensagemWhatsApp
-            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\n\n📍 Localização: https://maps.app.goo.gl/NKGxJoH1GgiaJHDE9";
+            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\n";
 
         var mensagem = template
             .Replace("{id}", reserva.Id.ToString())
@@ -138,7 +139,7 @@ public class WhatsAppService : IWhatsAppService
             throw new InvalidOperationException("Telefone WhatsApp não configurado");
 
         var template = config.MensagemWhatsApp
-            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\n\n📍 Localização: https://maps.app.goo.gl/NKGxJoH1GgiaJHDE9";
+            ?? "Olá! Fiz uma reserva no estacionamento.\n\nID: {id}\nNome: {nome}\nPlaca: {placa}\nEntrada: {entrada}\nHorário entrada: {horarioEntrada}\nSaída prevista: {saida}\nTipo: {tipo}\nDias: {dias}\nValor diária: R$ {valorDiaria}\n";
 
         var blocos = new List<string>();
         decimal valorTotalGeral = 0;
