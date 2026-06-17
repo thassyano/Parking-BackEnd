@@ -57,8 +57,7 @@ public class ReservaRepository : IReservaRepository
             .Where(r => r.DataEntrada > agora
                 && r.DataEntrada <= limite
                 && !r.MensagemConfirmacaoEnviada
-                && statusAtivos.Contains(r.Status)
-                && r.Origem == OrigemReserva.Online)
+                && statusAtivos.Contains(r.Status))
             .ToListAsync();
     }
 
@@ -71,8 +70,7 @@ public class ReservaRepository : IReservaRepository
             .Where(r => r.DataEntrada < hoje.AddDays(1)
                 && !r.ConfirmadaPeloCliente
                 && r.MensagemConfirmacaoEnviada
-                && statusAtivos.Contains(r.Status)
-                && r.Origem == OrigemReserva.Online)
+                && statusAtivos.Contains(r.Status))
             .ToListAsync();
     }
 
@@ -101,7 +99,7 @@ public class ReservaRepository : IReservaRepository
         else if (dataInicio.HasValue)
         {
             var inicio = ToUtc(dataInicio.Value.Date);
-            var fim    = ToUtc(dataInicio.Value.Date.AddDays(1).AddTicks(-1));
+            var fim = ToUtc(dataInicio.Value.Date.AddDays(1).AddTicks(-1));
             query = query.Where(r => r.DataEntrada >= inicio && r.DataEntrada <= fim);
         }
         else if (dataFim.HasValue)
