@@ -1,3 +1,4 @@
+using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
@@ -50,13 +51,14 @@ public class ConfirmacaoReservaWorker : BackgroundService
             return;
         }
 
-        await CancelarNaoConfirmadasAsync(services.ReservaRepo);
-        await EnviarNotificacoesAsync(services.ReservaRepo, services.WhatsAppService, config);
+        await CancelarNaoConfirmadasAsync(services.ReservaRepo, services.LogService);
+        await EnviarNotificacoesAsync(services.ReservaRepo, services.WhatsAppService, services.LogService, config);
     }
 
     private async Task EnviarNotificacoesAsync(
         IReservaRepository reservaRepo,
         IWhatsAppService whatsAppService,
+        ILogAtividadeService logService,
         ConfiguracaoEstacionamento config)
     {
         var horasAntecedencia = config.HorasAntecedenciaConfirmacao > 0
@@ -69,13 +71,14 @@ public class ConfirmacaoReservaWorker : BackgroundService
         _logger.LogInformation("{count} reserva(s) para notificar.", reservas.Count);
 
         foreach (var reserva in reservas)
-            await NotificarReservaAsync(reserva, reservaRepo, whatsAppService, config);
+            await NotificarReservaAsync(reserva, reservaRepo, whatsAppService, logService, config);
     }
 
     private async Task NotificarReservaAsync(
         Reserva reserva,
         IReservaRepository reservaRepo,
         IWhatsAppService whatsAppService,
+        ILogAtividadeService logService,
         ConfiguracaoEstacionamento config)
     {
         try
@@ -87,17 +90,38 @@ public class ConfirmacaoReservaWorker : BackgroundService
             await reservaRepo.AtualizarAsync(reserva);
 
             if (enviado)
+            {
                 _logger.LogInformation("Mensagem enviada: reserva {Id} ({Nome}).", reserva.Id, reserva.NomeCliente);
+                await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                    AcaoLog.WorkerWhatsAppEnviado,
+                    $"Confirmação WhatsApp enviada para reserva #{reserva.Id} ({reserva.NomeCliente})",
+                    entidade: "Reserva",
+                    entidadeId: reserva.Id));
+            }
             else
+            {
                 _logger.LogWarning("Evolution API ausente. Reserva {Id} marcada sem envio.", reserva.Id);
+                await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                    AcaoLog.WorkerWhatsAppFalha,
+                    $"Evolution API não configurada. Reserva #{reserva.Id} marcada sem envio.",
+                    entidade: "Reserva",
+                    entidadeId: reserva.Id,
+                    sucesso: false));
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Falha ao notificar reserva {Id}.", reserva.Id);
+            await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                AcaoLog.WorkerWhatsAppFalha,
+                $"Erro ao notificar reserva #{reserva.Id}: {ex.Message}",
+                entidade: "Reserva",
+                entidadeId: reserva.Id,
+                sucesso: false));
         }
     }
 
-    private async Task CancelarNaoConfirmadasAsync(IReservaRepository reservaRepo)
+    private async Task CancelarNaoConfirmadasAsync(IReservaRepository reservaRepo, ILogAtividadeService logService)
     {
         var reservas = (await reservaRepo.ObterParaCancelamentoAutomaticoAsync()).ToList();
         if (reservas.Count == 0) return;
@@ -105,10 +129,10 @@ public class ConfirmacaoReservaWorker : BackgroundService
         _logger.LogInformation("{count} reserva(s) para cancelamento automático.", reservas.Count);
 
         foreach (var reserva in reservas)
-            await CancelarReservaAsync(reserva, reservaRepo);
+            await CancelarReservaAsync(reserva, reservaRepo, logService);
     }
 
-    private async Task CancelarReservaAsync(Reserva reserva, IReservaRepository reservaRepo)
+    private async Task CancelarReservaAsync(Reserva reserva, IReservaRepository reservaRepo, ILogAtividadeService logService)
     {
         try
         {
@@ -119,6 +143,12 @@ public class ConfirmacaoReservaWorker : BackgroundService
 
             await reservaRepo.AtualizarAsync(reserva);
             _logger.LogInformation("Reserva {Id} cancelada automaticamente.", reserva.Id);
+
+            await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                AcaoLog.WorkerCancelamentoAutomatico,
+                $"Reserva #{reserva.Id} ({reserva.NomeCliente}) cancelada automaticamente (sem confirmação WhatsApp)",
+                entidade: "Reserva",
+                entidadeId: reserva.Id));
         }
         catch (Exception ex)
         {
@@ -126,11 +156,12 @@ public class ConfirmacaoReservaWorker : BackgroundService
         }
     }
 
-    private static (IReservaRepository ReservaRepo, IConfiguracaoRepository ConfiguracaoRepo, IWhatsAppService WhatsAppService)
+    private static (IReservaRepository ReservaRepo, IConfiguracaoRepository ConfiguracaoRepo, IWhatsAppService WhatsAppService, ILogAtividadeService LogService)
         ResolverServicos(IServiceScope scope) =>
     (
         scope.ServiceProvider.GetRequiredService<IReservaRepository>(),
         scope.ServiceProvider.GetRequiredService<IConfiguracaoRepository>(),
-        scope.ServiceProvider.GetRequiredService<IWhatsAppService>()
+        scope.ServiceProvider.GetRequiredService<IWhatsAppService>(),
+        scope.ServiceProvider.GetRequiredService<ILogAtividadeService>()
     );
 }
