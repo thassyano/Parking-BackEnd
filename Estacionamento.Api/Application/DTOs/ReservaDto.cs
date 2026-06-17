@@ -62,6 +62,12 @@ public class CriarReservaPresencialDto
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
+
+    /// <summary>
+    /// Quando true, a reserva é criada como Pendente (sem check-in imediato),
+    /// permitindo o fluxo de confirmação via WhatsApp para reservas agendadas.
+    /// </summary>
+    public bool ReservaFutura { get; set; } = false;
 }
 
 // === Associar placa quando online chega ===

@@ -133,8 +133,8 @@ public class ReservaService : IReservaService
             ValorTotal = valorTotal,
             ValorFinal = valorTotal,
             Origem = OrigemReserva.Presencial,
-            Status = StatusReserva.CheckinRealizado,
-            DataCheckin = DateTimeHelper.AgoraBrasilia(),
+            Status = dto.ReservaFutura ? StatusReserva.Pendente : StatusReserva.CheckinRealizado,
+            DataCheckin = dto.ReservaFutura ? null : DateTimeHelper.AgoraBrasilia(),
             Observacoes = dto.Observacoes
         };
 
@@ -321,6 +321,7 @@ public class ReservaService : IReservaService
             Numero = reserva.Id,
             PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
             DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
+            DataSaidaPrevista = reserva.DataSaidaPrevista,
             DataHoraSaida = reserva.DataCheckout ?? DateTimeHelper.AgoraBrasilia(),
             TipoVaga = reserva.TipoVaga.ToString(),
             QtdDias = reserva.QtdDias,
