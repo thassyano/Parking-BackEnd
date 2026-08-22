@@ -40,6 +40,8 @@ public class ConfiguracaoRepository : IConfiguracaoRepository
             existente.Cnpj = config.Cnpj;
             existente.TotalVagasCoberta = config.TotalVagasCoberta;
             existente.TotalVagasDescoberta = config.TotalVagasDescoberta;
+            existente.ValorTraslado = config.ValorTraslado;
+            existente.TrasladoGratisAPartirDiarias = config.TrasladoGratisAPartirDiarias;
             existente.TelefoneWhatsApp = config.TelefoneWhatsApp;
             existente.MensagemWhatsApp = config.MensagemWhatsApp;
             existente.EvolutionApiUrl = config.EvolutionApiUrl;

@@ -59,8 +59,8 @@ public class SeedController : ControllerBase
             if (!await _context.Precos.AnyAsync())
             {
                 _context.Precos.AddRange(
-                    new Preco { TipoVaga = TipoVaga.Coberta, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true },
-                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorDiaria = 20.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true }
+                    new Preco { TipoVaga = TipoVaga.Coberta, ValorHorasAdicionaisAte6h = 15.00m, ValorHorasAdicionaisAte12h = 30.00m, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true },
+                    new Preco { TipoVaga = TipoVaga.Descoberta, ValorHorasAdicionaisAte6h = 10.00m, ValorHorasAdicionaisAte12h = 20.00m, ValorDiaria = 30.00m, DescontoPixDinheiro = 5.00m, DataInicio = DateTimeHelper.AgoraBrasilia(), Ativo = true }
                 );
             }
 

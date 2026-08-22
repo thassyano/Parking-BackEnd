@@ -22,6 +22,12 @@ public class AtualizarConfiguracaoDto
     [Range(0, 10000)]
     public int? TotalVagasDescoberta { get; set; }
 
+    [Range(0, 100000)]
+    public decimal? ValorTraslado { get; set; }
+
+    [Range(1, 365)]
+    public int? TrasladoGratisAPartirDiarias { get; set; }
+
     [MaxLength(20)]
     public string? TelefoneWhatsApp { get; set; }
 
@@ -53,6 +59,8 @@ public class ConfiguracaoResponseDto
     public string? Cnpj { get; set; }
     public int TotalVagasCoberta { get; set; }
     public int TotalVagasDescoberta { get; set; }
+    public decimal ValorTraslado { get; set; }
+    public int TrasladoGratisAPartirDiarias { get; set; }
     public string? TelefoneWhatsApp { get; set; }
     public string? MensagemWhatsApp { get; set; }
     public string? EvolutionApiUrl { get; set; }

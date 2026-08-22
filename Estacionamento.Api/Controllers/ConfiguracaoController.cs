@@ -42,6 +42,8 @@ public class ConfiguracaoController : ControllerBase
         if (dto.Cnpj != null) config.Cnpj = dto.Cnpj;
         if (dto.TotalVagasCoberta.HasValue) config.TotalVagasCoberta = dto.TotalVagasCoberta.Value;
         if (dto.TotalVagasDescoberta.HasValue) config.TotalVagasDescoberta = dto.TotalVagasDescoberta.Value;
+        if (dto.ValorTraslado.HasValue) config.ValorTraslado = dto.ValorTraslado.Value;
+        if (dto.TrasladoGratisAPartirDiarias.HasValue) config.TrasladoGratisAPartirDiarias = dto.TrasladoGratisAPartirDiarias.Value;
         if (dto.TelefoneWhatsApp != null) config.TelefoneWhatsApp = dto.TelefoneWhatsApp;
         if (dto.MensagemWhatsApp != null) config.MensagemWhatsApp = dto.MensagemWhatsApp;
         if (dto.EvolutionApiUrl != null) config.EvolutionApiUrl = dto.EvolutionApiUrl;
@@ -63,6 +65,8 @@ public class ConfiguracaoController : ControllerBase
         Cnpj = c.Cnpj,
         TotalVagasCoberta = c.TotalVagasCoberta,
         TotalVagasDescoberta = c.TotalVagasDescoberta,
+        ValorTraslado = c.ValorTraslado,
+        TrasladoGratisAPartirDiarias = c.TrasladoGratisAPartirDiarias,
         TelefoneWhatsApp = c.TelefoneWhatsApp,
         MensagemWhatsApp = c.MensagemWhatsApp,
         EvolutionApiUrl = c.EvolutionApiUrl,
