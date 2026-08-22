@@ -84,6 +84,9 @@ public class CheckoutDto
 {
     [Required(ErrorMessage = "A forma de pagamento é obrigatória")]
     public string FormaPagamento { get; set; } = string.Empty;
+
+    // Cobrar traslado nesta saída (R$ configurável; grátis a partir de N diárias)
+    public bool ComTraslado { get; set; } = false;
 }
 
 // === Response ===
@@ -102,6 +105,8 @@ public class ReservaResponseDto
     public decimal ValorTotal { get; set; }
     public decimal DescontoAplicado { get; set; }
     public decimal ValorFinal { get; set; }
+    public bool ComTraslado { get; set; }
+    public decimal ValorTraslado { get; set; }
     public string? FormaPagamento { get; set; }
     public bool Pago { get; set; }
     public string Status { get; set; } = string.Empty;
