@@ -247,22 +247,44 @@ public class ReservaService : IReservaService
 
         var formaPagamento = Enum.Parse<FormaPagamento>(dto.FormaPagamento, true);
 
-        var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga);
-        decimal desconto = 0;
+        var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga)
+            ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {reserva.TipoVaga}");
 
+        var entrada = reserva.DataCheckin ?? reserva.DataEntrada;
+        var saida = DateTimeHelper.AgoraBrasilia();
+
+        // Cobranca pelo tempo REAL de permanencia (faixas: ate 6h, ate 12h, acima = diaria cheia)
+        var estadia = CalculadoraEstadia.Calcular(
+            entrada, saida, preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
+
+        // Desconto Pix/Dinheiro por diaria efetivamente cobrada
+        decimal desconto = 0;
         if (formaPagamento == FormaPagamento.Pix || formaPagamento == FormaPagamento.Dinheiro)
+            desconto = preco.DescontoPixDinheiro * estadia.DiariasCobradas;
+
+        // Traslado: opcional, gratis a partir de N diarias
+        var config = await _configuracaoRepository.ObterAsync();
+        decimal valorTraslado = 0;
+        if (dto.ComTraslado)
         {
-            var descontoPorDia = preco?.DescontoPixDinheiro ?? 0;
-            desconto = descontoPorDia * reserva.QtdDias;
+            var gratisAPartir = config?.TrasladoGratisAPartirDiarias ?? 2;
+            valorTraslado = estadia.DiariasCobradas >= gratisAPartir
+                ? 0m
+                : (config?.ValorTraslado ?? 0m);
         }
 
-        reserva.FormaPagamento = formaPagamento;
+        reserva.ValorDiaria = preco.ValorDiaria;
+        reserva.QtdDias = estadia.DiariasCobradas;
+        reserva.ValorTotal = estadia.ValorEstadia + valorTraslado;
         reserva.DescontoAplicado = desconto;
-        reserva.ValorFinal = reserva.ValorTotal - desconto;
+        reserva.ComTraslado = dto.ComTraslado;
+        reserva.ValorTraslado = valorTraslado;
+        reserva.ValorFinal = estadia.ValorEstadia - desconto + valorTraslado;
+        reserva.FormaPagamento = formaPagamento;
         reserva.Pago = true;
-        reserva.DataPagamento = DateTimeHelper.AgoraBrasilia();
+        reserva.DataPagamento = saida;
         reserva.Status = StatusReserva.CheckoutRealizado;
-        reserva.DataCheckout = DateTimeHelper.AgoraBrasilia();
+        reserva.DataCheckout = saida;
 
         await _reservaRepository.AtualizarAsync(reserva);
         return MapToResponse(reserva);
@@ -312,6 +334,13 @@ public class ReservaService : IReservaService
 
         var config = await _configuracaoRepository.ObterAsync();
 
+        var entrada = reserva.DataCheckin ?? reserva.DataEntrada;
+        var saida = reserva.DataCheckout ?? DateTimeHelper.AgoraBrasilia();
+
+        var preco = await _precoRepository.ObterAtivoAsync(reserva.TipoVaga);
+        var adicionais = preco == null ? 0m : CalculadoraEstadia.Calcular(
+            entrada, saida, preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria).ValorHorasAdicionais;
+
         return new CupomSaidaDto
         {
             NomeEstacionamento = config?.NomeEstacionamento ?? "Estacionamento",
@@ -320,14 +349,18 @@ public class ReservaService : IReservaService
             Cnpj = config?.Cnpj,
             Numero = reserva.Id,
             PlacaVeiculo = reserva.PlacaVeiculo ?? "-",
-            DataHoraEntrada = reserva.DataCheckin ?? reserva.DataEntrada,
+            DataHoraEntrada = entrada,
             DataSaidaPrevista = reserva.DataSaidaPrevista,
-            DataHoraSaida = reserva.DataCheckout ?? DateTimeHelper.AgoraBrasilia(),
+            DataHoraSaida = saida,
             TipoVaga = reserva.TipoVaga.ToString(),
             QtdDias = reserva.QtdDias,
+            Permanencia = CalculadoraEstadia.FormatarPermanencia(saida - entrada),
             ValorDiaria = reserva.ValorDiaria,
             ValorTotal = reserva.ValorTotal,
             DescontoAplicado = reserva.DescontoAplicado,
+            ValorHorasAdicionais = adicionais,
+            ComTraslado = reserva.ComTraslado,
+            ValorTraslado = reserva.ValorTraslado,
             ValorFinal = reserva.ValorFinal,
             FormaPagamento = reserva.FormaPagamento?.ToString() ?? "-"
         };
@@ -367,6 +400,8 @@ public class ReservaService : IReservaService
         ValorTotal = r.ValorTotal,
         DescontoAplicado = r.DescontoAplicado,
         ValorFinal = r.ValorFinal,
+        ComTraslado = r.ComTraslado,
+        ValorTraslado = r.ValorTraslado,
         FormaPagamento = r.FormaPagamento?.ToString(),
         Pago = r.Pago,
         Status = r.Status.ToString(),

@@ -39,6 +39,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Preco>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.ValorHorasAdicionaisAte6h).HasPrecision(18, 2);
+            entity.Property(e => e.ValorHorasAdicionaisAte12h).HasPrecision(18, 2);
             entity.Property(e => e.ValorDiaria).HasPrecision(18, 2);
             entity.Property(e => e.DescontoPixDinheiro).HasPrecision(18, 2);
             entity.Property(e => e.TipoVaga).HasConversion<string>().HasMaxLength(20);
@@ -55,6 +57,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValorTotal).HasPrecision(18, 2);
             entity.Property(e => e.DescontoAplicado).HasPrecision(18, 2);
             entity.Property(e => e.ValorFinal).HasPrecision(18, 2);
+            entity.Property(e => e.ValorTraslado).HasPrecision(18, 2);
             entity.Property(e => e.TipoVaga).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(e => e.FormaPagamento).HasConversion<string>().HasMaxLength(20);
@@ -74,6 +77,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Endereco).HasMaxLength(300);
             entity.Property(e => e.Contato).HasMaxLength(20);
             entity.Property(e => e.Cnpj).HasMaxLength(20);
+            entity.Property(e => e.ValorTraslado).HasPrecision(18, 2);
             entity.Property(e => e.TelefoneWhatsApp).HasMaxLength(20);
             entity.Property(e => e.MensagemWhatsApp).HasMaxLength(1000);
             entity.Property(e => e.EvolutionApiUrl).HasMaxLength(500);

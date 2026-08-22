@@ -31,7 +31,7 @@ public class Reserva
     public string TelefoneCliente { get; set; } = string.Empty;
     public string? CpfCliente { get; set; }
 
-    // Dados do veículo
+    // Dados do veiculo
     public string? PlacaVeiculo { get; set; }
 
     // Reserva
@@ -46,7 +46,11 @@ public class Reserva
     public decimal DescontoAplicado { get; set; }
     public decimal ValorFinal { get; set; }
 
-    // Pagamento (na saída)
+    // Traslado
+    public bool ComTraslado { get; set; }
+    public decimal ValorTraslado { get; set; }
+
+    // Pagamento (na saida)
     public FormaPagamento? FormaPagamento { get; set; }
     public bool Pago { get; set; }
     public DateTime? DataPagamento { get; set; }
@@ -60,7 +64,7 @@ public class Reserva
     public string? Observacoes { get; set; }
     public DateTime DataCriacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
 
-    // Confirmação via WhatsApp
+    // Confirmacao via WhatsApp
     public Guid ConfirmacaoToken { get; set; } = Guid.NewGuid();
     public bool ConfirmadaPeloCliente { get; set; } = false;
     public bool MensagemConfirmacaoEnviada { get; set; } = false;
