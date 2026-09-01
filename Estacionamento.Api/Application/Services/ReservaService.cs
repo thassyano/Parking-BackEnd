@@ -44,9 +44,12 @@ public class ReservaService : IReservaService
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
 
-        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
+        // Valor previsto: diarias cheias (blocos de 24h) + valor fixo da faixa do periodo parcial
+        var estadia = CalculadoraEstadia.Calcular(
+            dto.DataEntrada, dto.DataSaidaPrevista,
+            preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, estadia.DiariasCobradas);
 
         var reserva = new Reserva
         {
@@ -56,11 +59,11 @@ public class ReservaService : IReservaService
             PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = estadia.DiariasCompletas,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
-            ValorTotal = valorTotal,
-            ValorFinal = valorTotal,
+            ValorTotal = estadia.ValorEstadia,
+            ValorFinal = estadia.ValorEstadia,
             Origem = OrigemReserva.Online,
             Status = StatusReserva.Pendente,
             Observacoes = dto.Observacoes
@@ -115,9 +118,12 @@ public class ReservaService : IReservaService
         var preco = await _precoRepository.ObterAtivoAsync(tipoVaga)
             ?? throw new InvalidOperationException($"Nenhum preço ativo para vaga {dto.TipoVaga}");
 
-        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, dto.QtdDias);
+        // Valor previsto: diarias cheias (blocos de 24h) + valor fixo da faixa do periodo parcial
+        var estadia = CalculadoraEstadia.Calcular(
+            dto.DataEntrada, dto.DataSaidaPrevista,
+            preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
 
-        var valorTotal = preco.ValorDiaria * dto.QtdDias;
+        await VerificarDisponibilidadeAsync(tipoVaga, dto.DataEntrada, estadia.DiariasCobradas);
 
         var reserva = new Reserva
         {
@@ -127,11 +133,11 @@ public class ReservaService : IReservaService
             PlacaVeiculo = dto.PlacaVeiculo.ToUpper(),
             TipoVaga = tipoVaga,
             DataEntrada = dto.DataEntrada,
-            QtdDias = dto.QtdDias,
+            QtdDias = estadia.DiariasCompletas,
             DataSaidaPrevista = dto.DataSaidaPrevista,
             ValorDiaria = preco.ValorDiaria,
-            ValorTotal = valorTotal,
-            ValorFinal = valorTotal,
+            ValorTotal = estadia.ValorEstadia,
+            ValorFinal = estadia.ValorEstadia,
             Origem = OrigemReserva.Presencial,
             Status = dto.ReservaFutura ? StatusReserva.Pendente : StatusReserva.CheckinRealizado,
             DataCheckin = dto.ReservaFutura ? null : DateTimeHelper.AgoraBrasilia(),
@@ -260,7 +266,7 @@ public class ReservaService : IReservaService
         // Desconto Pix/Dinheiro por diaria efetivamente cobrada
         decimal desconto = 0;
         if (formaPagamento == FormaPagamento.Pix || formaPagamento == FormaPagamento.Dinheiro)
-            desconto = preco.DescontoPixDinheiro * estadia.DiariasCobradas;
+            desconto = preco.DescontoPixDinheiro * estadia.DiariasCompletas;
 
         // Traslado: opcional, gratis a partir de N diarias
         var config = await _configuracaoRepository.ObterAsync();
@@ -268,13 +274,13 @@ public class ReservaService : IReservaService
         if (dto.ComTraslado)
         {
             var gratisAPartir = config?.TrasladoGratisAPartirDiarias ?? 2;
-            valorTraslado = estadia.DiariasCobradas >= gratisAPartir
+            valorTraslado = estadia.DiariasCompletas >= gratisAPartir
                 ? 0m
                 : (config?.ValorTraslado ?? 0m);
         }
 
         reserva.ValorDiaria = preco.ValorDiaria;
-        reserva.QtdDias = estadia.DiariasCobradas;
+        reserva.QtdDias = estadia.DiariasCompletas;
         reserva.ValorTotal = estadia.ValorEstadia + valorTraslado;
         reserva.DescontoAplicado = desconto;
         reserva.ComTraslado = dto.ComTraslado;

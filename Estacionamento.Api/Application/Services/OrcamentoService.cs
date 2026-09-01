@@ -1,6 +1,7 @@
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Infrastructure.Repositories;
+using Estacionamento.Api.Helpers;
 
 namespace Estacionamento.Api.Application.Services;
 
@@ -38,17 +39,36 @@ public class OrcamentoService : IOrcamentoService
 
         var ocupadas = await _reservaRepository.ContarVagasOcupadasAsync(tipoVaga, dto.DataEntrada.Date);
 
-        var valorCartao = preco.ValorDiaria * dto.QtdDias;
-        var descontoTotal = preco.DescontoPixDinheiro * dto.QtdDias;
+        // Saida prevista: usa a data/hora informada; se ausente, deriva de QtdDias (dias cheios)
+        var saidaPrevista = dto.DataSaidaPrevista ?? dto.DataEntrada.AddDays(dto.QtdDias);
+
+        // Diarias cheias + valor fixo da faixa do periodo parcial (ate 6h / ate 12h / acima = diaria)
+        var estadia = CalculadoraEstadia.Calcular(
+            dto.DataEntrada, saidaPrevista,
+            preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
+
+        var valorCartao = estadia.ValorEstadia;
+        var descontoTotal = preco.DescontoPixDinheiro * estadia.DiariasCompletas;
         var valorPixDinheiro = valorCartao - descontoTotal;
+
+        // Rotulo de precificacao: estadia sub-diaria mostra a faixa; com dias cheios mostra "Diaria"
+        var totalHoras = (decimal)(saidaPrevista - dto.DataEntrada).TotalHours;
+        var horasParcial = totalHoras - (estadia.DiariasCompletas * 24m);
+        var tipoPrecificacao =
+            estadia.DiariasCompletas == 0 && horasParcial > 0m && horasParcial <= 6m ? "HorasAte6h"
+            : estadia.DiariasCompletas == 0 && horasParcial > 6m && horasParcial <= 12m ? "HorasAte12h"
+            : "Diaria";
 
         return new OrcamentoResponseDto
         {
             TipoVaga = tipoVaga.ToString(),
             DataEntrada = dto.DataEntrada.Date,
-            QtdDias = dto.QtdDias,
-            DataSaidaPrevista = dto.DataEntrada.Date.AddDays(dto.QtdDias),
+            QtdDias = estadia.DiariasCompletas,
+            DataSaidaPrevista = saidaPrevista,
+            TipoPrecificacao = tipoPrecificacao,
             ValorDiaria = preco.ValorDiaria,
+            DiariasCompletas = estadia.DiariasCompletas,
+            ValorHorasAdicionais = estadia.ValorHorasAdicionais,
             ValorTotalCartao = valorCartao,
             ValorTotalPixDinheiro = valorPixDinheiro,
             DescontoPixDinheiroPorDia = preco.DescontoPixDinheiro,
