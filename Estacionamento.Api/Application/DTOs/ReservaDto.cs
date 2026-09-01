@@ -28,7 +28,7 @@ public class CriarReservaOnlineDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
+    [Range(0, 365)]
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
@@ -60,7 +60,7 @@ public class CriarReservaPresencialDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
+    [Range(0, 365)]
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
@@ -144,7 +144,7 @@ public class CarroLoteDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
+    [Range(0, 365)]
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
@@ -189,7 +189,7 @@ public class CarroPresencialLoteDto
     public DateTime DataSaidaPrevista { get; set; }
 
     [Required]
-    [Range(1, 365)]
+    [Range(0, 365)]
     public int QtdDias { get; set; } = 1;
 
     public string? Observacoes { get; set; }
