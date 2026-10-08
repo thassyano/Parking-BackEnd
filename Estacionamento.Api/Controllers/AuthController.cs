@@ -121,13 +121,15 @@ public class AuthController : ControllerBase
             _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key não configurada")));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()),
             new Claim(ClaimTypes.Name, admin.Usuario),
-            new Claim(ClaimTypes.Email, admin.Email),
             new Claim(ClaimTypes.Role, admin.Perfil.ToString())
         };
+
+        if (!string.IsNullOrWhiteSpace(admin.Email))
+            claims.Add(new Claim(ClaimTypes.Email, admin.Email));
 
         var token = new JwtSecurityToken(
             issuer: _configuration["Jwt:Issuer"],
