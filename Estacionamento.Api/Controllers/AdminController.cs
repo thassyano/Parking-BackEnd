@@ -23,6 +23,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> CriarAdmin([FromBody] CriarAdminDto dto)
     {
         if (!ModelState.IsValid)
@@ -45,6 +46,7 @@ public class AdminController : ControllerBase
                 Usuario = dto.Usuario,
                 SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
                 Email = dto.Email,
+                Perfil = PerfilAdmin.Admin,
                 Ativo = true,
                 DataCriacao = DateTimeHelper.AgoraBrasilia()
             };
@@ -62,6 +64,7 @@ public class AdminController : ControllerBase
                     id = admin.Id,
                     usuario = admin.Usuario,
                     email = admin.Email,
+                    perfil = admin.Perfil,
                     ativo = admin.Ativo,
                     dataCriacao = admin.DataCriacao
                 });
@@ -74,6 +77,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> ListarTodos()
     {
         var admins = await _context.Admins
@@ -82,6 +86,7 @@ public class AdminController : ControllerBase
                 id = a.Id,
                 usuario = a.Usuario,
                 email = a.Email,
+                perfil = a.Perfil,
                 ativo = a.Ativo,
                 dataCriacao = a.DataCriacao
             })
@@ -91,6 +96,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> ObterPorId(int id)
     {
         var admin = await _context.Admins
@@ -100,6 +106,7 @@ public class AdminController : ControllerBase
                 id = a.Id,
                 usuario = a.Usuario,
                 email = a.Email,
+                perfil = a.Perfil,
                 ativo = a.Ativo,
                 dataCriacao = a.DataCriacao
             })
@@ -112,6 +119,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("{id}/ativar")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> AtivarDesativar(int id, [FromBody] AtivarAdminDto dto)
     {
         var admin = await _context.Admins.FindAsync(id);
@@ -125,6 +133,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> Deletar(int id)
     {
         var admin = await _context.Admins.FindAsync(id);

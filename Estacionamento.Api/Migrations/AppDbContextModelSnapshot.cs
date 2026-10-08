@@ -46,6 +46,11 @@ namespace Estacionamento.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Perfil")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("SenhaHash")
                         .IsRequired()
                         .HasMaxLength(255)

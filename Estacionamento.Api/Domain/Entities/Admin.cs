@@ -9,4 +9,5 @@ public class Admin
     public string Nome { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; } = Helpers.DateTimeHelper.AgoraBrasilia();
     public bool Ativo { get; set; } = true;
+    public PerfilAdmin Perfil { get; set; } = PerfilAdmin.Admin;
 }
