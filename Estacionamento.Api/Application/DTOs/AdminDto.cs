@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Estacionamento.Api.Domain.Entities;
 
 namespace Estacionamento.Api.Application.DTOs;
 
@@ -27,6 +28,7 @@ public class AdminResponseDto
     public string Usuario { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Nome { get; set; } = string.Empty;
+    public PerfilAdmin Perfil { get; set; }
     public DateTime DataCriacao { get; set; }
     public bool Ativo { get; set; }
 }

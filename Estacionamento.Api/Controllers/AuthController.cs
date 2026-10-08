@@ -97,6 +97,7 @@ public class AuthController : ControllerBase
             {
                 Token = token,
                 Usuario = admin.Usuario,
+                Perfil = admin.Perfil.ToString(),
                 ExpiraEm = DateTimeHelper.AgoraBrasilia().AddHours(8)
             };
 
@@ -125,7 +126,7 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()),
             new Claim(ClaimTypes.Name, admin.Usuario),
             new Claim(ClaimTypes.Email, admin.Email),
-            new Claim("role", "Admin")
+            new Claim(ClaimTypes.Role, admin.Perfil.ToString())
         };
 
         var token = new JwtSecurityToken(
