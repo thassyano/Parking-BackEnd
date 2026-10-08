@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Estacionamento.Api.Application.DTOs;
 using BCrypt.Net;
 using Estacionamento.Api.Domain.Entities;
 using Estacionamento.Api.Helpers;
@@ -33,7 +34,7 @@ public class AdminController : ControllerBase
         {
             // Verificar se o usuário já existe
             var usuarioExistente = await _context.Admins
-                .AnyAsync(a => a.Usuario == dto.Usuario || a.Email == dto.Email);
+                .AnyAsync(a => a.Usuario == dto.Usuario || (dto.Email != null && a.Email == dto.Email));
 
             if (usuarioExistente)
             {
@@ -46,7 +47,8 @@ public class AdminController : ControllerBase
                 Usuario = dto.Usuario,
                 SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
                 Email = dto.Email,
-                Perfil = PerfilAdmin.Admin,
+                Nome = dto.Nome ?? string.Empty,
+                Perfil = dto.Perfil,
                 Ativo = true,
                 DataCriacao = DateTimeHelper.AgoraBrasilia()
             };
@@ -118,6 +120,46 @@ public class AdminController : ControllerBase
         return Ok(admin);
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Policy = AdminRoles.AdminMaster)]
+    public async Task<IActionResult> AtualizarAdmin(int id, [FromBody] AtualizarAdminDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var admin = await _context.Admins.FindAsync(id);
+        if (admin == null)
+            return NotFound();
+
+        var duplicado = await _context.Admins
+            .AnyAsync(a => a.Id != id && (a.Usuario == dto.Usuario || (dto.Email != null && a.Email == dto.Email)));
+
+        if (duplicado)
+            return BadRequest(new { message = "Usuário ou email já existe" });
+
+        admin.Usuario = dto.Usuario;
+        admin.Email = dto.Email;
+        admin.Nome = dto.Nome ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(dto.Senha))
+            admin.SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Admin atualizado: {Usuario}", admin.Usuario);
+
+        return Ok(new
+        {
+            id = admin.Id,
+            usuario = admin.Usuario,
+            email = admin.Email,
+            nome = admin.Nome,
+            perfil = admin.Perfil,
+            ativo = admin.Ativo,
+            dataCriacao = admin.DataCriacao
+        });
+    }
+
     [HttpPut("{id}/ativar")]
     [Authorize(Policy = AdminRoles.AdminMaster)]
     public async Task<IActionResult> AtivarDesativar(int id, [FromBody] AtivarAdminDto dto)
@@ -152,13 +194,6 @@ public class AdminController : ControllerBase
 
         return Ok(new { message = "Admin deletado com sucesso" });
     }
-}
-
-public class CriarAdminDto
-{
-    public string Usuario { get; set; } = string.Empty;
-    public string Senha { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
 }
 
 public class AtivarAdminDto
