@@ -6,12 +6,15 @@ public record ResultadoEstadia(
     decimal ValorHorasAdicionais,
     int DiariasCompletas,
     int DiariasCobradas,
-    TimeSpan Permanencia);
+    TimeSpan Permanencia,
+    int DiariasParaDesconto);
 
 /// <summary>
 /// Calcula o valor da estadia pelo tempo REAL de permanencia.
 /// Cada 24h completas = 1 diaria cheia. O periodo parcial final entra numa faixa:
 /// ate 6h, acima de 6h ate 12h, ou acima de 12h (= diaria cheia).
+/// O desconto Pix/Dinheiro vale por diaria cheia, incluindo a que resulta de um parcial acima de 12h
+/// (<see cref="ResultadoEstadia.DiariasParaDesconto"/>).
 /// </summary>
 public static class CalculadoraEstadia
 {
@@ -32,6 +35,7 @@ public static class CalculadoraEstadia
 
         decimal adicionais = 0m;
         int diariasCobradas = diariasCompletas;
+        int diariasParaDesconto = diariasCompletas;
 
         if (horasRestantes > 0m)
         {
@@ -40,7 +44,10 @@ public static class CalculadoraEstadia
             else if (horasRestantes <= 12m)
                 adicionais = valorAte12h;
             else
+            {
                 adicionais = valorDiaria; // acima de 12h = diaria cheia
+                diariasParaDesconto += 1; // essa diaria cheia tambem recebe o desconto Pix/Dinheiro
+            }
 
             diariasCobradas += 1; // periodo parcial conta como 1 diaria (regra do traslado)
         }
@@ -50,7 +57,7 @@ public static class CalculadoraEstadia
 
         var valorEstadia = (diariasCompletas * valorDiaria) + adicionais;
 
-        return new ResultadoEstadia(valorEstadia, adicionais, diariasCompletas, diariasCobradas, permanencia);
+        return new ResultadoEstadia(valorEstadia, adicionais, diariasCompletas, diariasCobradas, permanencia, diariasParaDesconto);
     }
 
     /// <summary>Formata a permanencia como "X dias e HH:MM:SS" (ou apenas HH:MM:SS quando &lt; 1 dia).</summary>
