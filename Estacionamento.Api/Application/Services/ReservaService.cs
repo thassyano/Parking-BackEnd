@@ -263,10 +263,10 @@ public class ReservaService : IReservaService
         var estadia = CalculadoraEstadia.Calcular(
             entrada, saida, preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
 
-        // Desconto Pix/Dinheiro por diaria efetivamente cobrada
+        // Desconto Pix/Dinheiro por diaria cheia cobrada (inclui o parcial acima de 12h)
         decimal desconto = 0;
         if (formaPagamento == FormaPagamento.Pix || formaPagamento == FormaPagamento.Dinheiro)
-            desconto = preco.DescontoPixDinheiro * estadia.DiariasCompletas;
+            desconto = preco.DescontoPixDinheiro * estadia.DiariasParaDesconto;
 
         // Traslado: opcional, gratis a partir de N diarias
         var config = await _configuracaoRepository.ObterAsync();

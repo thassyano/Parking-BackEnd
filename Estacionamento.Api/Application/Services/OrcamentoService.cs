@@ -48,7 +48,7 @@ public class OrcamentoService : IOrcamentoService
             preco.ValorHorasAdicionaisAte6h, preco.ValorHorasAdicionaisAte12h, preco.ValorDiaria);
 
         var valorCartao = estadia.ValorEstadia;
-        var descontoTotal = preco.DescontoPixDinheiro * estadia.DiariasCompletas;
+        var descontoTotal = preco.DescontoPixDinheiro * estadia.DiariasParaDesconto;
         var valorPixDinheiro = valorCartao - descontoTotal;
 
         // Rotulo de precificacao: estadia sub-diaria mostra a faixa; com dias cheios mostra "Diaria"
