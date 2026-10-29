@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Reserva> Reservas { get; set; }
     public DbSet<ConfiguracaoEstacionamento> Configuracoes { get; set; }
     public DbSet<LogAtividade> LogsAtividade { get; set; }
+    public DbSet<BloqueioReserva> BloqueiosReserva { get; set; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -54,6 +55,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TelefoneCliente).IsRequired().HasMaxLength(20);
             entity.Property(e => e.CpfCliente).HasMaxLength(14);
             entity.Property(e => e.PlacaVeiculo).HasMaxLength(10);
+            entity.Property(e => e.MarcaVeiculo).HasMaxLength(50);
+            entity.Property(e => e.ModeloVeiculo).HasMaxLength(50);
+            entity.Property(e => e.CorVeiculo).HasMaxLength(30);
             entity.Property(e => e.ValorDiaria).HasPrecision(18, 2);
             entity.Property(e => e.ValorTotal).HasPrecision(18, 2);
             entity.Property(e => e.DescontoAplicado).HasPrecision(18, 2);
@@ -69,6 +73,14 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.DataEntrada);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ConfirmacaoToken).IsUnique();
+        });
+
+        modelBuilder.Entity<BloqueioReserva>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Motivo).HasMaxLength(200);
+            entity.Property(e => e.CriadoPor).HasMaxLength(50);
+            entity.HasIndex(e => new { e.Ativo, e.DataInicio, e.DataFim });
         });
 
         modelBuilder.Entity<ConfiguracaoEstacionamento>(entity =>

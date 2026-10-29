@@ -166,6 +166,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IPrecoRepository, PrecoRepository>();
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IConfiguracaoRepository, ConfiguracaoRepository>();
+builder.Services.AddScoped<IBloqueioReservaRepository, BloqueioReservaRepository>();
 
 // Services
 builder.Services.AddScoped<IPrecoService, PrecoService>();

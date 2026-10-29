@@ -10,6 +10,8 @@ public interface IWhatsAppService
 {
     Task<WhatsAppRedirectDto> GerarLinkAsync(int reservaId);
     Task<WhatsAppRedirectDto> GerarLinkLoteAsync(List<int> reservaIds);
+    Task<WhatsAppRedirectDto> GerarLinkAlteracaoAsync(int reservaId);
+    Task<WhatsAppRedirectDto> GerarLinkAlteracaoLoteAsync(List<int> reservaIds);
     Task<bool> EnviarConfirmacaoViaEvolutionAsync(Reserva reserva, ConfiguracaoEstacionamento config);
 }
 
@@ -181,6 +183,50 @@ public class WhatsAppService : IWhatsAppService
         return new WhatsAppRedirectDto
         {
             Url = url,
+            Mensagem = mensagem,
+            TelefoneEstacionamento = config.TelefoneWhatsApp
+        };
+    }
+
+    /// <summary>Link do WhatsApp avisando que uma reserva existente teve o período alterado.</summary>
+    public Task<WhatsAppRedirectDto> GerarLinkAlteracaoAsync(int reservaId) =>
+        GerarLinkAlteracaoLoteAsync(new List<int> { reservaId });
+
+    public async Task<WhatsAppRedirectDto> GerarLinkAlteracaoLoteAsync(List<int> reservaIds)
+    {
+        var config = await _configuracaoRepository.ObterAsync()
+            ?? throw new InvalidOperationException("Configuração do estacionamento não encontrada");
+
+        if (string.IsNullOrEmpty(config.TelefoneWhatsApp))
+            throw new InvalidOperationException("Telefone WhatsApp não configurado");
+
+        var blocos = new List<string>();
+        foreach (var id in reservaIds)
+        {
+            var r = await _reservaRepository.ObterPorIdAsync(id)
+                ?? throw new InvalidOperationException($"Reserva {id} não encontrada");
+
+            blocos.Add(
+                $"ID: {r.Id}\n" +
+                $"Placa: {r.PlacaVeiculo ?? "-"}\n" +
+                $"Nova entrada: {r.DataEntrada:dd/MM/yyyy HH:mm}\n" +
+                $"Nova saída prevista: {r.DataSaidaPrevista:dd/MM/yyyy HH:mm}\n" +
+                $"Tipo: {r.TipoVaga}\n" +
+                $"Valor previsto: R$ {r.ValorTotal:N2}");
+        }
+
+        var cabecalho = reservaIds.Count == 1
+            ? "Olá! Atualizei minha reserva no estacionamento (a anterior foi substituída por esta).\n\n"
+            : "Olá! Atualizei minhas reservas no estacionamento (as anteriores foram substituídas por estas).\n\n";
+        var mensagem = cabecalho + string.Join("\n\n---\n\n", blocos);
+
+        var telefoneFormatado = config.TelefoneWhatsApp
+            .Replace(" ", "").Replace("-", "")
+            .Replace("(", "").Replace(")", "").Replace("+", "");
+
+        return new WhatsAppRedirectDto
+        {
+            Url = $"https://wa.me/{telefoneFormatado}?text={Uri.EscapeDataString(mensagem)}",
             Mensagem = mensagem,
             TelefoneEstacionamento = config.TelefoneWhatsApp
         };

@@ -56,7 +56,7 @@ public class OrcamentoService : IOrcamentoService
         var horasParcial = totalHoras - (estadia.DiariasCompletas * 24m);
         var tipoPrecificacao =
             estadia.DiariasCompletas == 0 && horasParcial > 0m && horasParcial <= 6m ? "HorasAte6h"
-            : estadia.DiariasCompletas == 0 && horasParcial > 6m && horasParcial <= 12m ? "HorasAte12h"
+            : estadia.DiariasCompletas == 0 && horasParcial > 6m && horasParcial < 12m ? "HorasAte12h"
             : "Diaria";
 
         return new OrcamentoResponseDto
@@ -68,6 +68,7 @@ public class OrcamentoService : IOrcamentoService
             TipoPrecificacao = tipoPrecificacao,
             ValorDiaria = preco.ValorDiaria,
             DiariasCompletas = estadia.DiariasCompletas,
+            DiariasCheias = estadia.DiariasParaDesconto,
             ValorHorasAdicionais = estadia.ValorHorasAdicionais,
             ValorTotalCartao = valorCartao,
             ValorTotalPixDinheiro = valorPixDinheiro,

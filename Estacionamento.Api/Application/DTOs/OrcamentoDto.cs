@@ -27,6 +27,9 @@ public class OrcamentoResponseDto
     public string TipoPrecificacao { get; set; } = "Diaria"; // HorasAte6h | HorasAte12h | Diaria
     public decimal ValorDiaria { get; set; }
     public int DiariasCompletas { get; set; }
+
+    /// <summary>Diárias cheias cobradas: completas + a parcial de 12h ou mais.</summary>
+    public int DiariasCheias { get; set; }
     public decimal ValorHorasAdicionais { get; set; }
     public decimal ValorTotalCartao { get; set; }
     public decimal ValorTotalPixDinheiro { get; set; }
