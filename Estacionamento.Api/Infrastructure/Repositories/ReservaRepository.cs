@@ -11,7 +11,8 @@ public interface IReservaRepository
     Task<Reserva?> ObterPorTokenAsync(Guid token);
     Task<IEnumerable<Reserva>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim);
     Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga, string? placaVeiculo);
-    Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data);
+    Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data, int? ignorarReservaId = null);
+    Task<Reserva?> ObterConflitoPorPlacaAsync(string placa, DateTime entrada, DateTime saida, int? ignorarReservaId = null);
     Task<IEnumerable<Reserva>> ObterParaEnvioConfirmacaoAsync(int horasAntecedencia);
     Task<IEnumerable<Reserva>> ObterParaCancelamentoAutomaticoAsync();
     Task<Reserva> CriarAsync(Reserva reserva);
@@ -123,7 +124,7 @@ public class ReservaRepository : IReservaRepository
 
     }
 
-    public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data)
+    public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data, int? ignorarReservaId = null)
     {
         var dataUtc = ToUtc(data.Date);
 
@@ -138,9 +139,33 @@ public class ReservaRepository : IReservaRepository
 
         return await _context.Reservas
             .CountAsync(r => r.TipoVaga == tipoVaga
+                && (ignorarReservaId == null || r.Id != ignorarReservaId)
                 && statusAtivos.Contains(r.Status)
                 && r.DataEntrada < fimDoDia
                 && r.DataSaidaPrevista >= dataUtc);
+    }
+
+    public async Task<Reserva?> ObterConflitoPorPlacaAsync(string placa, DateTime entrada, DateTime saida, int? ignorarReservaId = null)
+    {
+        var placaNormalizada = placa.Trim().ToUpper();
+        var entradaUtc = ToUtc(entrada);
+        var saidaUtc = ToUtc(saida);
+
+        var statusAtivos = new[]
+        {
+            StatusReserva.Pendente,
+            StatusReserva.Confirmada,
+            StatusReserva.CheckinRealizado
+        };
+
+        return await _context.Reservas
+            .Where(r => r.PlacaVeiculo == placaNormalizada
+                && (ignorarReservaId == null || r.Id != ignorarReservaId)
+                && statusAtivos.Contains(r.Status)
+                && r.DataEntrada < saidaUtc
+                && r.DataSaidaPrevista > entradaUtc)
+            .OrderBy(r => r.DataEntrada)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<Reserva> CriarAsync(Reserva reserva)

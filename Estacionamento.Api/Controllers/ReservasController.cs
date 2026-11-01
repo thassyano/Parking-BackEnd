@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Estacionamento.Api.Application.DTOs;
 using Estacionamento.Api.Application.Services;
 using Estacionamento.Api.Domain.Entities;
+using Estacionamento.Api.Helpers;
 using Estacionamento.Api.Infrastructure.Repositories;
 
 namespace Estacionamento.Api.Controllers;
@@ -14,12 +15,18 @@ public class ReservasController : ControllerBase
     private readonly IReservaService _reservaService;
     private readonly IWhatsAppService _whatsAppService;
     private readonly IReservaRepository _reservaRepository;
+    private readonly ILogAtividadeService _logService;
 
-    public ReservasController(IReservaService reservaService, IWhatsAppService whatsAppService, IReservaRepository reservaRepository)
+    public ReservasController(
+        IReservaService reservaService,
+        IWhatsAppService whatsAppService,
+        IReservaRepository reservaRepository,
+        ILogAtividadeService logService)
     {
         _reservaService = reservaService;
         _whatsAppService = whatsAppService;
         _reservaRepository = reservaRepository;
+        _logService = logService;
     }
 
     /// <summary>Listar reservas (com filtros opcionais)</summary>
@@ -288,6 +295,170 @@ public class ReservasController : ControllerBase
         {
             var resultado = await _whatsAppService.GerarLinkLoteAsync(reservaIds);
             return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Prévia do check-out: recalcula valores conforme forma de pagamento e traslado, sem gravar nada</summary>
+    [HttpGet("{id}/previa-checkout")]
+    [Authorize]
+    public async Task<IActionResult> PreviaCheckout(int id, [FromQuery] string formaPagamento, [FromQuery] bool comTraslado = false)
+    {
+        try
+        {
+            var previa = await _reservaService.PreviaCheckoutAsync(id, formaPagamento, comTraslado);
+            if (previa == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            return Ok(previa);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Corrige a forma de pagamento depois do check-out (refaz desconto e traslado)</summary>
+    [HttpPatch("{id}/forma-pagamento")]
+    [Authorize]
+    public async Task<IActionResult> AlterarFormaPagamento(int id, [FromBody] AlterarFormaPagamentoDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var antes = await _reservaService.ObterPorIdAsync(id);
+            var reserva = await _reservaService.AlterarFormaPagamentoAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.ReservaPagamentoAlterado,
+                $"Pagamento da reserva #{id} alterado de {antes?.FormaPagamento ?? "-"} para {reserva.FormaPagamento}. " +
+                $"Valor final: R$ {antes?.ValorFinal:N2} -> R$ {reserva.ValorFinal:N2}",
+                "Reserva", id));
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Altera marca, modelo e cor do veículo (qualquer perfil de admin)</summary>
+    [HttpPatch("{id}/dados-veiculo")]
+    [Authorize]
+    public async Task<IActionResult> AtualizarDadosVeiculo(int id, [FromBody] AtualizarDadosVeiculoDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var reserva = await _reservaService.AtualizarDadosVeiculoAsync(id, dto);
+        if (reserva == null)
+            return NotFound(new { message = "Reserva não encontrada" });
+
+        await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+            User, AcaoLog.ReservaVeiculoAlterado,
+            $"Dados do veículo da reserva #{id}: marca '{reserva.MarcaVeiculo ?? "-"}', modelo '{reserva.ModeloVeiculo ?? "-"}', cor '{reserva.CorVeiculo ?? "-"}'",
+            "Reserva", id));
+
+        return Ok(reserva);
+    }
+
+    /// <summary>Procura reserva ativa da mesma placa que se cruza com o período (404 quando não há)</summary>
+    [HttpGet("conflito")]
+    public async Task<IActionResult> VerificarConflito(
+        [FromQuery] string placa, [FromQuery] DateTime dataEntrada, [FromQuery] DateTime dataSaidaPrevista)
+    {
+        var conflito = await _reservaService.VerificarConflitoAsync(placa, dataEntrada, dataSaidaPrevista);
+        if (conflito == null)
+            return NotFound(new { message = "Nenhum conflito encontrado" });
+
+        return Ok(conflito);
+    }
+
+    /// <summary>Admin altera o período (e opcionalmente a vaga) de uma reserva ainda não iniciada</summary>
+    [HttpPatch("{id}/alterar")]
+    [Authorize]
+    public async Task<IActionResult> Alterar(int id, [FromBody] AlterarReservaAdminDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var reserva = await _reservaService.AlterarAdminAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.ReservaSobrescrita,
+                $"Reserva #{id} ({reserva.PlacaVeiculo}) atualizada para {reserva.DataEntrada:dd/MM/yyyy HH:mm} - {reserva.DataSaidaPrevista:dd/MM/yyyy HH:mm}",
+                "Reserva", id));
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Cliente altera a própria reserva (confirma com placa + telefone, sem login)</summary>
+    [HttpPatch("{id}/alterar-cliente")]
+    public async Task<IActionResult> AlterarCliente(int id, [FromBody] AlterarReservaClienteDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var reserva = await _reservaService.AlterarClienteAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.ReservaSobrescrita,
+                $"Cliente atualizou a reserva #{id} ({reserva.PlacaVeiculo}) para {reserva.DataEntrada:dd/MM/yyyy HH:mm} - {reserva.DataSaidaPrevista:dd/MM/yyyy HH:mm}",
+                "Reserva", id, origem: OrigemLog.Cliente));
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Link do WhatsApp avisando que a reserva foi alterada</summary>
+    [HttpGet("{id}/whatsapp-alteracao")]
+    public async Task<IActionResult> GerarLinkWhatsAppAlteracao(int id)
+    {
+        try
+        {
+            return Ok(await _whatsAppService.GerarLinkAlteracaoAsync(id));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Link do WhatsApp consolidado avisando alteração de várias reservas</summary>
+    [HttpPost("whatsapp/lote-alteracao")]
+    public async Task<IActionResult> GerarLinkWhatsAppAlteracaoLote([FromBody] List<int> reservaIds)
+    {
+        if (reservaIds == null || reservaIds.Count == 0)
+            return BadRequest(new { message = "Informe pelo menos um ID de reserva" });
+
+        try
+        {
+            return Ok(await _whatsAppService.GerarLinkAlteracaoLoteAsync(reservaIds));
         }
         catch (InvalidOperationException ex)
         {

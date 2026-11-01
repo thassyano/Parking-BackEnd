@@ -12,7 +12,8 @@ public record ResultadoEstadia(
 /// <summary>
 /// Calcula o valor da estadia pelo tempo REAL de permanencia.
 /// Cada 24h completas = 1 diaria cheia. O periodo parcial final entra numa faixa:
-/// ate 6h, acima de 6h ate 12h, ou acima de 12h (= diaria cheia).
+/// ate 6h, acima de 6h e menos de 12h, ou 12h ou mais (= diaria cheia).
+/// Ex.: 1 dia e 12h = 2 diarias; 2 dias e 13h = 3 diarias.
 /// O desconto Pix/Dinheiro vale por diaria cheia, incluindo a que resulta de um parcial acima de 12h
 /// (<see cref="ResultadoEstadia.DiariasParaDesconto"/>).
 /// </summary>
@@ -41,11 +42,11 @@ public static class CalculadoraEstadia
         {
             if (horasRestantes <= 6m)
                 adicionais = valorAte6h;
-            else if (horasRestantes <= 12m)
+            else if (horasRestantes < 12m)
                 adicionais = valorAte12h;
             else
             {
-                adicionais = valorDiaria; // acima de 12h = diaria cheia
+                adicionais = valorDiaria; // a partir de 12h = diaria cheia
                 diariasParaDesconto += 1; // essa diaria cheia tambem recebe o desconto Pix/Dinheiro
             }
 

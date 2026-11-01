@@ -33,6 +33,9 @@ public class Reserva
 
     // Dados do veiculo
     public string? PlacaVeiculo { get; set; }
+    public string? MarcaVeiculo { get; set; }
+    public string? ModeloVeiculo { get; set; }
+    public string? CorVeiculo { get; set; }
 
     // Reserva
     public TipoVaga TipoVaga { get; set; }
