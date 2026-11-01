@@ -179,6 +179,9 @@ builder.Services.AddScoped<ILogAtividadeService, LogAtividadeService>();
 
 // HttpClient para Evolution API
 builder.Services.AddHttpClient("EvolutionApi");
+builder.Services.AddHttpClient("Fipe", client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IVeiculoCatalogoService, VeiculoCatalogoService>();
 
 // Background worker de confirmação de reservas
 builder.Services.AddHostedService<ConfirmacaoReservaWorker>();

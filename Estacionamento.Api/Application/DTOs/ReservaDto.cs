@@ -33,12 +33,15 @@ public class CriarReservaOnlineDto
 
     public string? Observacoes { get; set; }
 
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
     [MaxLength(50, ErrorMessage = "Marca deve ter no máximo 50 caracteres")]
     public string? MarcaVeiculo { get; set; }
 
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
     [MaxLength(50, ErrorMessage = "Modelo deve ter no máximo 50 caracteres")]
     public string? ModeloVeiculo { get; set; }
 
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
     [MaxLength(30, ErrorMessage = "Cor deve ter no máximo 30 caracteres")]
     public string? CorVeiculo { get; set; }
 }
@@ -74,12 +77,15 @@ public class CriarReservaPresencialDto
 
     public string? Observacoes { get; set; }
 
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
     [MaxLength(50, ErrorMessage = "Marca deve ter no máximo 50 caracteres")]
     public string? MarcaVeiculo { get; set; }
 
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
     [MaxLength(50, ErrorMessage = "Modelo deve ter no máximo 50 caracteres")]
     public string? ModeloVeiculo { get; set; }
 
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
     [MaxLength(30, ErrorMessage = "Cor deve ter no máximo 30 caracteres")]
     public string? CorVeiculo { get; set; }
 
@@ -170,12 +176,15 @@ public class CarroLoteDto
 
     public string? Observacoes { get; set; }
 
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
     [MaxLength(50)]
     public string? MarcaVeiculo { get; set; }
 
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
     [MaxLength(50)]
     public string? ModeloVeiculo { get; set; }
 
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
     [MaxLength(30)]
     public string? CorVeiculo { get; set; }
 }
@@ -224,12 +233,15 @@ public class CarroPresencialLoteDto
 
     public string? Observacoes { get; set; }
 
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
     [MaxLength(50)]
     public string? MarcaVeiculo { get; set; }
 
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
     [MaxLength(50)]
     public string? ModeloVeiculo { get; set; }
 
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
     [MaxLength(30)]
     public string? CorVeiculo { get; set; }
 }
@@ -252,12 +264,15 @@ public class CriarReservaLotePresencialDto
 // === Editar marca/modelo/cor (qualquer perfil de admin) ===
 public class AtualizarDadosVeiculoDto
 {
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
     [MaxLength(50, ErrorMessage = "Marca deve ter no máximo 50 caracteres")]
     public string? MarcaVeiculo { get; set; }
 
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
     [MaxLength(50, ErrorMessage = "Modelo deve ter no máximo 50 caracteres")]
     public string? ModeloVeiculo { get; set; }
 
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
     [MaxLength(30, ErrorMessage = "Cor deve ter no máximo 30 caracteres")]
     public string? CorVeiculo { get; set; }
 }
