@@ -27,6 +27,8 @@ public static class AcaoLog
     public const string ReservaVeiculoAlterado = "ReservaVeiculoAlterado";
     public const string ReservaPagamentoAlterado = "ReservaPagamentoAlterado";
     public const string ReservaSobrescrita = "ReservaSobrescrita";
+    public const string ReservaEditada = "ReservaEditada";
+    public const string ReservaAlteradaCliente = "ReservaAlteradaCliente";
     public const string BloqueioCriado = "BloqueioCriado";
     public const string BloqueioRemovido = "BloqueioRemovido";
 
@@ -41,7 +43,7 @@ public static class AcaoLog
         ReservaOnline, ReservaPresencial, ReservaAlterada, ReservaPlacaAssociada,
         ReservaCheckin, ReservaCheckout, ReservaCancelada, ReservaConfirmadaCliente,
         ConfiguracaoAtualizada, ConfiguracaoTesteEvolution, PrecoCriado,
-        ReservaVeiculoAlterado, ReservaPagamentoAlterado, ReservaSobrescrita, BloqueioCriado, BloqueioRemovido,
+        ReservaVeiculoAlterado, ReservaPagamentoAlterado, ReservaSobrescrita, ReservaEditada, ReservaAlteradaCliente, BloqueioCriado, BloqueioRemovido,
         WorkerWhatsAppEnviado, WorkerWhatsAppFalha, WorkerCancelamentoAutomatico
     ];
 }
