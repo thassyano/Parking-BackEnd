@@ -85,29 +85,31 @@ public class ConfirmacaoReservaWorker : BackgroundService
         {
             var enviado = await whatsAppService.EnviarConfirmacaoViaEvolutionAsync(reserva, config);
 
+            if (!enviado)
+            {
+                // Não marca como enviada: o próximo ciclo tenta de novo. Marcar aqui faria o cliente nunca
+                // receber o pedido de confirmação e, ainda assim, ter a reserva cancelada automaticamente.
+                _logger.LogWarning(
+                    "Confirmação NÃO enviada para a reserva {Id}. Nova tentativa no próximo ciclo.", reserva.Id);
+                await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                    AcaoLog.WorkerWhatsAppFalha,
+                    $"Confirmação não enviada para reserva #{reserva.Id} (Evolution API fora do ar, não configurada ou telefone inválido). Será tentado novamente.",
+                    entidade: "Reserva",
+                    entidadeId: reserva.Id,
+                    sucesso: false));
+                return;
+            }
+
             reserva.MensagemConfirmacaoEnviada = true;
             reserva.DataEnvioConfirmacao = DateTimeHelper.AgoraBrasilia();
             await reservaRepo.AtualizarAsync(reserva);
 
-            if (enviado)
-            {
-                _logger.LogInformation("Mensagem enviada: reserva {Id} ({Nome}).", reserva.Id, reserva.NomeCliente);
-                await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
-                    AcaoLog.WorkerWhatsAppEnviado,
-                    $"Confirmação WhatsApp enviada para reserva #{reserva.Id} ({reserva.NomeCliente})",
-                    entidade: "Reserva",
-                    entidadeId: reserva.Id));
-            }
-            else
-            {
-                _logger.LogWarning("Evolution API ausente. Reserva {Id} marcada sem envio.", reserva.Id);
-                await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
-                    AcaoLog.WorkerWhatsAppFalha,
-                    $"Evolution API não configurada. Reserva #{reserva.Id} marcada sem envio.",
-                    entidade: "Reserva",
-                    entidadeId: reserva.Id,
-                    sucesso: false));
-            }
+            _logger.LogInformation("Mensagem enviada: reserva {Id} ({Nome}).", reserva.Id, reserva.NomeCliente);
+            await logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistroSistema(
+                AcaoLog.WorkerWhatsAppEnviado,
+                $"Confirmação WhatsApp enviada para reserva #{reserva.Id} ({reserva.NomeCliente})",
+                entidade: "Reserva",
+                entidadeId: reserva.Id));
         }
         catch (Exception ex)
         {
