@@ -32,13 +32,28 @@ public class ReservaRepository : IReservaRepository
     private static DateTime ToUtc(DateTime dt) =>
         dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
 
+    /// <summary>
+    /// Ordem da lista de reservas do admin: primeiro as entradas de hoje em diante, da mais próxima para a
+    /// mais distante; depois as entradas já passadas, da mais recente para a mais antiga.
+    /// O Id desempata reservas no mesmo horário.
+    /// </summary>
+    internal static List<Reserva> OrdenarPorProximidadeDaEntrada(IEnumerable<Reserva> reservas, DateTime agora)
+    {
+        var hoje = agora.Date;
+        var lista = reservas.ToList();
+
+        var proximas = lista.Where(r => r.DataEntrada >= hoje)
+            .OrderBy(r => r.DataEntrada).ThenBy(r => r.Id);
+        var passadas = lista.Where(r => r.DataEntrada < hoje)
+            .OrderByDescending(r => r.DataEntrada).ThenByDescending(r => r.Id);
+
+        return proximas.Concat(passadas).ToList();
+    }
+
     public async Task<IEnumerable<Reserva>> ObterTodasAsync()
     {
-        // Mais recente primeiro pela data de ENTRADA (Id desempata reservas no mesmo horário).
-        return await _context.Reservas
-            .OrderByDescending(r => r.DataEntrada)
-            .ThenByDescending(r => r.Id)
-            .ToListAsync();
+        var reservas = await _context.Reservas.ToListAsync();
+        return OrdenarPorProximidadeDaEntrada(reservas, Helpers.DateTimeHelper.AgoraBrasilia());
     }
 
     public async Task<Reserva?> ObterPorIdAsync(int id)
@@ -121,10 +136,8 @@ public class ReservaRepository : IReservaRepository
             query = query.Where(r => r.PlacaVeiculo != null && r.PlacaVeiculo == placa);
         }
 
-        return await query
-            .OrderByDescending(r => r.DataEntrada)
-            .ThenByDescending(r => r.Id)
-            .ToListAsync();
+        var resultado = await query.ToListAsync();
+        return OrdenarPorProximidadeDaEntrada(resultado, Helpers.DateTimeHelper.AgoraBrasilia());
     }
 
     public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data, int? ignorarReservaId = null)
