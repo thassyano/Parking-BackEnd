@@ -435,6 +435,79 @@ public class ReservasController : ControllerBase
         }
     }
 
+    /// <summary>Admin edita a reserva inteira (cliente, veículo, vaga, período e observações)</summary>
+    [HttpPatch("{id}/editar")]
+    [Authorize]
+    public async Task<IActionResult> Editar(int id, [FromBody] EditarReservaAdminDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var antes = await _reservaService.ObterPorIdAsync(id);
+            var reserva = await _reservaService.EditarAdminAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.ReservaEditada,
+                $"Reserva #{id} editada. Vaga: {antes?.TipoVaga ?? "-"} -> {reserva.TipoVaga}; " +
+                $"período: {antes?.DataEntrada:dd/MM/yyyy HH:mm} - {antes?.DataSaidaPrevista:dd/MM/yyyy HH:mm} -> " +
+                $"{reserva.DataEntrada:dd/MM/yyyy HH:mm} - {reserva.DataSaidaPrevista:dd/MM/yyyy HH:mm}; " +
+                $"placa: {antes?.PlacaVeiculo ?? "-"} -> {reserva.PlacaVeiculo ?? "-"}",
+                "Reserva", id));
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Cliente consulta as próprias reservas futuras pela placa + telefone (sem login).
+    /// Sem o telefone conferindo nada é devolvido, e a resposta não traz dados pessoais.
+    /// </summary>
+    [HttpPost("consulta-cliente")]
+    public async Task<IActionResult> ConsultarCliente([FromBody] ConsultaReservaClienteDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var reservas = await _reservaService.ConsultarClienteAsync(dto);
+        return Ok(reservas);
+    }
+
+    /// <summary>Cliente altera marca/modelo/cor e tipo de vaga da própria reserva (até o limite de antecedência)</summary>
+    [HttpPatch("{id}/alterar-dados-cliente")]
+    public async Task<IActionResult> AlterarDadosCliente(int id, [FromBody] AlterarDadosClienteDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var antes = await _reservaService.ObterPorIdAsync(id);
+            var reserva = await _reservaService.AlterarDadosClienteAsync(id, dto);
+            if (reserva == null)
+                return NotFound(new { message = "Reserva não encontrada" });
+
+            await _logService.RegistrarAsync(LogAtividadeHttpExtensions.CriarRegistro(
+                User, AcaoLog.ReservaAlteradaCliente,
+                $"Cliente alterou a reserva #{id} ({reserva.PlacaVeiculo}): vaga {antes?.TipoVaga ?? "-"} -> {reserva.TipoVaga}; " +
+                $"veículo {reserva.MarcaVeiculo ?? "-"} {reserva.ModeloVeiculo ?? "-"} ({reserva.CorVeiculo ?? "-"})",
+                "Reserva", id, origem: OrigemLog.Cliente));
+
+            return Ok(reserva);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>Link do WhatsApp avisando que a reserva foi alterada</summary>
     [HttpGet("{id}/whatsapp-alteracao")]
     public async Task<IActionResult> GerarLinkWhatsAppAlteracao(int id)
