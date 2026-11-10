@@ -75,6 +75,16 @@ public class WhatsAppService : IWhatsAppService
         return response.IsSuccessStatusCode;
     }
 
+    /// <summary>
+    /// Número do wa.me: só dígitos e com DDI. Telefone brasileiro salvo sem o 55 (ex.: "(61) 99572-9976")
+    /// geraria um link para outro país, e a mensagem nunca chegaria ao estacionamento.
+    /// </summary>
+    internal static string NormalizarTelefoneWaMe(string telefone)
+    {
+        var digits = new string(telefone.Where(char.IsDigit).ToArray());
+        return digits.Length is 10 or 11 ? "55" + digits : digits;
+    }
+
     private static string? FormatarTelefoneInternacional(string telefone)
     {
         var digits = new string(telefone.Where(char.IsDigit).ToArray());
@@ -118,9 +128,7 @@ public class WhatsAppService : IWhatsAppService
             .Replace("{valorDiaria}", reserva.ValorDiaria.ToString("N2"))
             .Replace("{valorTotal}", reserva.ValorTotal.ToString("N2"));
 
-        var telefoneFormatado = config.TelefoneWhatsApp
-            .Replace(" ", "").Replace("-", "")
-            .Replace("(", "").Replace(")", "").Replace("+", "");
+        var telefoneFormatado = NormalizarTelefoneWaMe(config.TelefoneWhatsApp);
 
         var url = $"https://wa.me/{telefoneFormatado}?text={Uri.EscapeDataString(mensagem)}";
 
@@ -174,9 +182,7 @@ public class WhatsAppService : IWhatsAppService
         var rodape = $"\n💰 Valor total geral: R$ {valorTotalGeral:N2}";
         var mensagem = cabecalho + "\n" + string.Join("\n\n---\n\n", blocos) + rodape;
 
-        var telefoneFormatado = config.TelefoneWhatsApp
-            .Replace(" ", "").Replace("-", "")
-            .Replace("(", "").Replace(")", "").Replace("+", "");
+        var telefoneFormatado = NormalizarTelefoneWaMe(config.TelefoneWhatsApp);
 
         var url = $"https://wa.me/{telefoneFormatado}?text={Uri.EscapeDataString(mensagem)}";
 
@@ -206,9 +212,14 @@ public class WhatsAppService : IWhatsAppService
             var r = await _reservaRepository.ObterPorIdAsync(id)
                 ?? throw new InvalidOperationException($"Reserva {id} não encontrada");
 
+            var veiculo = string.Join(" ", new[] { r.MarcaVeiculo, r.ModeloVeiculo }.Where(v => !string.IsNullOrWhiteSpace(v)));
+            if (!string.IsNullOrWhiteSpace(r.CorVeiculo))
+                veiculo = string.IsNullOrEmpty(veiculo) ? r.CorVeiculo : $"{veiculo} ({r.CorVeiculo})";
+
             blocos.Add(
                 $"ID: {r.Id}\n" +
                 $"Placa: {r.PlacaVeiculo ?? "-"}\n" +
+                (string.IsNullOrEmpty(veiculo) ? string.Empty : $"Veículo: {veiculo}\n") +
                 $"Nova entrada: {r.DataEntrada:dd/MM/yyyy HH:mm}\n" +
                 $"Nova saída prevista: {r.DataSaidaPrevista:dd/MM/yyyy HH:mm}\n" +
                 $"Tipo: {r.TipoVaga}\n" +
@@ -220,9 +231,7 @@ public class WhatsAppService : IWhatsAppService
             : "Olá! Atualizei minhas reservas no estacionamento (as anteriores foram substituídas por estas).\n\n";
         var mensagem = cabecalho + string.Join("\n\n---\n\n", blocos);
 
-        var telefoneFormatado = config.TelefoneWhatsApp
-            .Replace(" ", "").Replace("-", "")
-            .Replace("(", "").Replace(")", "").Replace("+", "");
+        var telefoneFormatado = NormalizarTelefoneWaMe(config.TelefoneWhatsApp);
 
         return new WhatsAppRedirectDto
         {

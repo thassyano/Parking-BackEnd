@@ -13,6 +13,7 @@ public interface IReservaRepository
     Task<IEnumerable<Reserva>> ObterFiltradoAsync(DateTime? dataInicio, DateTime? dataFim, StatusReserva? status, TipoVaga? tipoVaga, string? placaVeiculo);
     Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data, int? ignorarReservaId = null);
     Task<Reserva?> ObterConflitoPorPlacaAsync(string placa, DateTime entrada, DateTime saida, int? ignorarReservaId = null);
+    Task<IEnumerable<Reserva>> ObterAtivasFuturasPorPlacaAsync(string placa, DateTime agora);
     Task<IEnumerable<Reserva>> ObterParaEnvioConfirmacaoAsync(int horasAntecedencia);
     Task<IEnumerable<Reserva>> ObterParaCancelamentoAutomaticoAsync();
     Task<Reserva> CriarAsync(Reserva reserva);
@@ -33,8 +34,10 @@ public class ReservaRepository : IReservaRepository
 
     public async Task<IEnumerable<Reserva>> ObterTodasAsync()
     {
+        // Mais recente primeiro pela data de ENTRADA (Id desempata reservas no mesmo horário).
         return await _context.Reservas
-            .OrderByDescending(r => r.DataCriacao)
+            .OrderByDescending(r => r.DataEntrada)
+            .ThenByDescending(r => r.Id)
             .ToListAsync();
     }
 
@@ -120,8 +123,8 @@ public class ReservaRepository : IReservaRepository
 
         return await query
             .OrderByDescending(r => r.DataEntrada)
+            .ThenByDescending(r => r.Id)
             .ToListAsync();
-
     }
 
     public async Task<int> ContarVagasOcupadasAsync(TipoVaga tipoVaga, DateTime data, int? ignorarReservaId = null)
@@ -166,6 +169,21 @@ public class ReservaRepository : IReservaRepository
                 && r.DataSaidaPrevista > entradaUtc)
             .OrderBy(r => r.DataEntrada)
             .FirstOrDefaultAsync();
+    }
+
+    /// <summary>Reservas ainda não iniciadas (Pendente/Confirmada) da placa, com entrada no futuro, da mais próxima para a mais distante.</summary>
+    public async Task<IEnumerable<Reserva>> ObterAtivasFuturasPorPlacaAsync(string placa, DateTime agora)
+    {
+        var placaNormalizada = placa.Trim().ToUpper();
+        var statusAlteraveis = new[] { StatusReserva.Pendente, StatusReserva.Confirmada };
+
+        return await _context.Reservas
+            .Where(r => r.PlacaVeiculo == placaNormalizada
+                && statusAlteraveis.Contains(r.Status)
+                && r.DataEntrada > agora)
+            .OrderBy(r => r.DataEntrada)
+            .ThenBy(r => r.Id)
+            .ToListAsync();
     }
 
     public async Task<Reserva> CriarAsync(Reserva reserva)

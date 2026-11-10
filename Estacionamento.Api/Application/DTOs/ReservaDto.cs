@@ -348,3 +348,113 @@ public class AlterarReservaClienteDto
     [Required(ErrorMessage = "O telefone é obrigatório")]
     public string TelefoneCliente { get; set; } = string.Empty;
 }
+
+// === Admin: edição completa da reserva ===
+/// <summary>
+/// Edição completa feita pelo admin. Nome, telefone, veículo e observações sempre são enviados por inteiro;
+/// <c>TipoVaga</c>, <c>DataEntrada</c> e <c>DataSaidaPrevista</c> são opcionais (nulo = mantém o valor atual).
+/// </summary>
+public class EditarReservaAdminDto
+{
+    [Required(ErrorMessage = "O nome é obrigatório")]
+    [MaxLength(100, ErrorMessage = "Nome deve ter no máximo 100 caracteres")]
+    public string NomeCliente { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(20, ErrorMessage = "Telefone deve ter no máximo 20 caracteres")]
+    public string TelefoneCliente { get; set; } = string.Empty;
+
+    [MaxLength(14, ErrorMessage = "CPF deve ter no máximo 14 caracteres")]
+    public string? CpfCliente { get; set; }
+
+    [MaxLength(10, ErrorMessage = "Placa do veículo deve ter no máximo 10 caracteres")]
+    public string? PlacaVeiculo { get; set; }
+
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
+    [MaxLength(50, ErrorMessage = "Marca deve ter no máximo 50 caracteres")]
+    public string? MarcaVeiculo { get; set; }
+
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
+    [MaxLength(50, ErrorMessage = "Modelo deve ter no máximo 50 caracteres")]
+    public string? ModeloVeiculo { get; set; }
+
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
+    [MaxLength(30, ErrorMessage = "Cor deve ter no máximo 30 caracteres")]
+    public string? CorVeiculo { get; set; }
+
+    [MaxLength(500, ErrorMessage = "Observações devem ter no máximo 500 caracteres")]
+    public string? Observacoes { get; set; }
+
+    /// <summary>Opcional: novo tipo de vaga (Coberta/Descoberta). Nulo = mantém.</summary>
+    public string? TipoVaga { get; set; }
+
+    /// <summary>Opcional: nova entrada. Nulo = mantém.</summary>
+    public DateTime? DataEntrada { get; set; }
+
+    /// <summary>Opcional: nova saída prevista. Nulo = mantém.</summary>
+    public DateTime? DataSaidaPrevista { get; set; }
+}
+
+// === Cliente: "Já tenho uma reserva" ===
+/// <summary>Identificação do cliente sem login: placa + telefone cadastrados na reserva.</summary>
+public class ConsultaReservaClienteDto
+{
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(20)]
+    public string TelefoneCliente { get; set; } = string.Empty;
+}
+
+/// <summary>Resumo de uma reserva para o próprio cliente, sem dados pessoais (nome, CPF, telefone).</summary>
+public class ReservaClienteResumoDto
+{
+    public int Id { get; set; }
+    public string PlacaVeiculo { get; set; } = string.Empty;
+    public string? MarcaVeiculo { get; set; }
+    public string? ModeloVeiculo { get; set; }
+    public string? CorVeiculo { get; set; }
+    public string TipoVaga { get; set; } = string.Empty;
+    public DateTime DataEntrada { get; set; }
+    public DateTime DataSaidaPrevista { get; set; }
+    public decimal ValorTotal { get; set; }
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>Verdadeiro enquanto ainda dá tempo de o cliente alterar sozinho.</summary>
+    public bool PodeAlterar { get; set; }
+
+    /// <summary>Último momento em que o cliente pode alterar (entrada menos a antecedência exigida).</summary>
+    public DateTime LimiteAlteracao { get; set; }
+
+    /// <summary>Quando não pode alterar: texto pronto para exibir ao cliente.</summary>
+    public string? MotivoBloqueio { get; set; }
+}
+
+/// <summary>Alteração feita pelo próprio cliente: veículo (marca/modelo/cor) e tipo de vaga.</summary>
+public class AlterarDadosClienteDto
+{
+    [Required(ErrorMessage = "A placa é obrigatória")]
+    [MaxLength(10)]
+    public string PlacaVeiculo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "O telefone é obrigatório")]
+    [MaxLength(20)]
+    public string TelefoneCliente { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "A marca do veículo é obrigatória")]
+    [MaxLength(50, ErrorMessage = "Marca deve ter no máximo 50 caracteres")]
+    public string? MarcaVeiculo { get; set; }
+
+    [Required(ErrorMessage = "O modelo do veículo é obrigatório")]
+    [MaxLength(50, ErrorMessage = "Modelo deve ter no máximo 50 caracteres")]
+    public string? ModeloVeiculo { get; set; }
+
+    [Required(ErrorMessage = "A cor do veículo é obrigatória")]
+    [MaxLength(30, ErrorMessage = "Cor deve ter no máximo 30 caracteres")]
+    public string? CorVeiculo { get; set; }
+
+    /// <summary>Opcional: novo tipo de vaga. Nulo = mantém.</summary>
+    public string? TipoVaga { get; set; }
+}

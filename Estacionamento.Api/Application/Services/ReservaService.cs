@@ -26,6 +26,9 @@ public interface IReservaService
     Task<ConflitoPlacaDto?> VerificarConflitoAsync(string placa, DateTime dataEntrada, DateTime dataSaidaPrevista);
     Task<ReservaResponseDto?> AlterarAdminAsync(int id, AlterarReservaAdminDto dto);
     Task<ReservaResponseDto?> AlterarClienteAsync(int id, AlterarReservaClienteDto dto);
+    Task<ReservaResponseDto?> EditarAdminAsync(int id, EditarReservaAdminDto dto);
+    Task<IReadOnlyList<ReservaClienteResumoDto>> ConsultarClienteAsync(ConsultaReservaClienteDto dto);
+    Task<ReservaResponseDto?> AlterarDadosClienteAsync(int id, AlterarDadosClienteDto dto);
 }
 
 public class ReservaService : IReservaService
@@ -511,6 +514,141 @@ public class ReservaService : IReservaService
         return MapToResponse(reserva);
     }
 
+    /// <summary>
+    /// Edição completa pelo admin. Dados do cliente/veículo/observações valem em qualquer status (menos cancelada);
+    /// período só enquanto Pendente/Confirmada; tipo de vaga também após o check-in (o check-out cobra pela vaga atual).
+    /// </summary>
+    public async Task<ReservaResponseDto?> EditarAdminAsync(int id, EditarReservaAdminDto dto)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null) return null;
+
+        if (reserva.Status == StatusReserva.Cancelada)
+            throw new InvalidOperationException("Reserva cancelada não pode ser editada");
+
+        var nome = NormalizarTexto(dto.NomeCliente)
+            ?? throw new InvalidOperationException("O nome é obrigatório");
+        var telefone = NormalizarTexto(dto.TelefoneCliente)
+            ?? throw new InvalidOperationException("O telefone é obrigatório");
+        var placa = NormalizarTexto(dto.PlacaVeiculo)?.ToUpper();
+
+        var tipoVaga = string.IsNullOrWhiteSpace(dto.TipoVaga) ? reserva.TipoVaga : ParseTipoVaga(dto.TipoVaga);
+        var entrada = dto.DataEntrada ?? reserva.DataEntrada;
+        var saida = dto.DataSaidaPrevista ?? reserva.DataSaidaPrevista;
+
+        var mudouVaga = tipoVaga != reserva.TipoVaga;
+        var mudouPeriodo = entrada != reserva.DataEntrada || saida != reserva.DataSaidaPrevista;
+
+        if (mudouPeriodo && !PodeAlterarPeriodo(reserva))
+            throw new InvalidOperationException("O período só pode ser alterado enquanto a reserva está Pendente ou Confirmada");
+
+        if (mudouVaga && reserva.Status == StatusReserva.CheckoutRealizado)
+            throw new InvalidOperationException("O tipo de vaga não pode ser alterado depois do check-out");
+
+        var estaNoPatio = reserva.Status is StatusReserva.CheckinRealizado or StatusReserva.CheckoutRealizado;
+        if (estaNoPatio && placa == null)
+            throw new InvalidOperationException("A placa é obrigatória em reservas com check-in");
+
+        // Mesma placa não pode estar em duas reservas ativas que se cruzam
+        var placaMudou = !string.Equals(placa, reserva.PlacaVeiculo, StringComparison.OrdinalIgnoreCase);
+        if (placa != null && reserva.Status != StatusReserva.CheckoutRealizado && (placaMudou || mudouPeriodo))
+        {
+            var conflito = await _reservaRepository.ObterConflitoPorPlacaAsync(placa, entrada, saida, reserva.Id);
+            if (conflito != null)
+                throw new InvalidOperationException(
+                    $"Já existe a reserva #{conflito.Id} para a placa {placa} em um período que se cruza com este");
+        }
+
+        void AplicarCampos(Reserva r)
+        {
+            r.NomeCliente = nome;
+            r.TelefoneCliente = telefone;
+            r.CpfCliente = NormalizarTexto(dto.CpfCliente);
+            r.PlacaVeiculo = placa;
+            r.MarcaVeiculo = NormalizarTexto(dto.MarcaVeiculo);
+            r.ModeloVeiculo = NormalizarTexto(dto.ModeloVeiculo);
+            r.CorVeiculo = NormalizarTexto(dto.CorVeiculo);
+            r.Observacoes = NormalizarTexto(dto.Observacoes);
+        }
+
+        if (mudouPeriodo || mudouVaga)
+        {
+            // Refaz disponibilidade e valores previstos; os campos só são aplicados se tudo for válido
+            await ReaplicarPeriodoAsync(reserva, entrada, saida, tipoVaga, AplicarCampos);
+        }
+        else
+        {
+            AplicarCampos(reserva);
+            await _reservaRepository.AtualizarAsync(reserva);
+        }
+
+        return MapToResponse(reserva);
+    }
+
+    /// <summary>Lista as reservas futuras e ainda não iniciadas da placa, desde que o telefone confira.</summary>
+    public async Task<IReadOnlyList<ReservaClienteResumoDto>> ConsultarClienteAsync(ConsultaReservaClienteDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.PlacaVeiculo) || ApenasDigitos(dto.TelefoneCliente).Length == 0)
+            return Array.Empty<ReservaClienteResumoDto>();
+
+        var agora = DateTimeHelper.AgoraBrasilia();
+        var config = await _configuracaoRepository.ObterAsync();
+        var horasLimite = RegraAlteracaoCliente.HorasLimite(config?.HorasAntecedenciaConfirmacao ?? 0);
+
+        var reservas = await _reservaRepository.ObterAtivasFuturasPorPlacaAsync(dto.PlacaVeiculo, agora);
+
+        // Sem telefone conferindo, nada volta: a placa sozinha não identifica o dono da reserva.
+        return reservas
+            .Where(r => TelefoneConfere(r.TelefoneCliente, dto.TelefoneCliente))
+            .Select(r => MapToResumoCliente(r, agora, horasLimite))
+            .ToList();
+    }
+
+    /// <summary>Cliente altera marca/modelo/cor e tipo de vaga da própria reserva, até o limite de antecedência.</summary>
+    public async Task<ReservaResponseDto?> AlterarDadosClienteAsync(int id, AlterarDadosClienteDto dto)
+    {
+        var reserva = await _reservaRepository.ObterPorIdAsync(id);
+        if (reserva == null) return null;
+
+        var placaConfere = string.Equals(
+            reserva.PlacaVeiculo?.Trim(), dto.PlacaVeiculo.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        if (!placaConfere || !TelefoneConfere(reserva.TelefoneCliente, dto.TelefoneCliente))
+            throw new InvalidOperationException("Não foi possível confirmar seus dados. Confira a placa e o telefone.");
+
+        if (!PodeAlterarPeriodo(reserva))
+            throw new InvalidOperationException("Esta reserva não pode mais ser alterada");
+
+        var config = await _configuracaoRepository.ObterAsync();
+        var horasLimite = RegraAlteracaoCliente.HorasLimite(config?.HorasAntecedenciaConfirmacao ?? 0);
+
+        if (!RegraAlteracaoCliente.PodeAlterar(
+                DateTimeHelper.AgoraBrasilia(), reserva.DataEntrada, horasLimite, reserva.MensagemConfirmacaoEnviada))
+            throw new InvalidOperationException(RegraAlteracaoCliente.MensagemBloqueio(horasLimite));
+
+        var tipoVaga = string.IsNullOrWhiteSpace(dto.TipoVaga) ? reserva.TipoVaga : ParseTipoVaga(dto.TipoVaga);
+
+        void AplicarCampos(Reserva r)
+        {
+            r.MarcaVeiculo = NormalizarTexto(dto.MarcaVeiculo);
+            r.ModeloVeiculo = NormalizarTexto(dto.ModeloVeiculo);
+            r.CorVeiculo = NormalizarTexto(dto.CorVeiculo);
+        }
+
+        if (tipoVaga != reserva.TipoVaga)
+        {
+            // Trocar a vaga exige vaga livre do novo tipo e refaz o valor previsto
+            await ReaplicarPeriodoAsync(reserva, reserva.DataEntrada, reserva.DataSaidaPrevista, tipoVaga, AplicarCampos);
+        }
+        else
+        {
+            AplicarCampos(reserva);
+            await _reservaRepository.AtualizarAsync(reserva);
+        }
+
+        return MapToResponse(reserva);
+    }
+
     // ---------- Regras internas ----------
 
     private sealed record CalculoCheckout(PreviaCheckoutDto Previa, decimal ValorDiaria);
@@ -599,7 +737,9 @@ public class ReservaService : IReservaService
         r.Status is StatusReserva.Pendente or StatusReserva.Confirmada;
 
     /// <summary>Aplica novo período/vaga a uma reserva ainda não iniciada, refazendo disponibilidade e valores.</summary>
-    private async Task ReaplicarPeriodoAsync(Reserva reserva, DateTime entrada, DateTime saidaPrevista, TipoVaga tipoVaga)
+    private async Task ReaplicarPeriodoAsync(
+        Reserva reserva, DateTime entrada, DateTime saidaPrevista, TipoVaga tipoVaga,
+        Action<Reserva>? aplicarAlteracoes = null)
     {
         if (saidaPrevista <= entrada)
             throw new InvalidOperationException("A saída deve ser depois da entrada");
@@ -622,6 +762,9 @@ public class ReservaService : IReservaService
         reserva.ValorTotal = estadia.ValorEstadia;
         reserva.ValorFinal = estadia.ValorEstadia;
 
+        // Demais campos editados juntos: só entram depois que as validações acima passaram
+        aplicarAlteracoes?.Invoke(reserva);
+
         await _reservaRepository.AtualizarAsync(reserva);
     }
 
@@ -643,6 +786,38 @@ public class ReservaService : IReservaService
 
     private static string ApenasDigitos(string? valor) =>
         new((valor ?? string.Empty).Where(char.IsDigit).ToArray());
+
+    /// <summary>Compara telefones só pelos dígitos, ignorando o código do país (55) quando informado.</summary>
+    private static bool TelefoneConfere(string? cadastrado, string? informado)
+    {
+        static string SemPais(string digitos) =>
+            digitos.Length > 11 && digitos.StartsWith("55") ? digitos[2..] : digitos;
+
+        var a = SemPais(ApenasDigitos(cadastrado));
+        var b = SemPais(ApenasDigitos(informado));
+        return a.Length > 0 && a == b;
+    }
+
+    private static ReservaClienteResumoDto MapToResumoCliente(Reserva r, DateTime agora, int horasLimite)
+    {
+        var pode = RegraAlteracaoCliente.PodeAlterar(agora, r.DataEntrada, horasLimite, r.MensagemConfirmacaoEnviada);
+        return new ReservaClienteResumoDto
+        {
+            Id = r.Id,
+            PlacaVeiculo = r.PlacaVeiculo ?? string.Empty,
+            MarcaVeiculo = r.MarcaVeiculo,
+            ModeloVeiculo = r.ModeloVeiculo,
+            CorVeiculo = r.CorVeiculo,
+            TipoVaga = r.TipoVaga.ToString(),
+            DataEntrada = r.DataEntrada,
+            DataSaidaPrevista = r.DataSaidaPrevista,
+            ValorTotal = r.ValorTotal,
+            Status = r.Status.ToString(),
+            PodeAlterar = pode,
+            LimiteAlteracao = RegraAlteracaoCliente.Limite(r.DataEntrada, horasLimite),
+            MotivoBloqueio = pode ? null : RegraAlteracaoCliente.MensagemBloqueio(horasLimite)
+        };
+    }
 
     private async Task VerificarDisponibilidadeAsync(TipoVaga tipoVaga, DateTime dataEntrada, int qtdDias, int? ignorarReservaId = null)
     {
